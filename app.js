@@ -61,7 +61,6 @@ var getResponder = function(pattern, req, res) {
 					var body = 'Hello World ' + JSON.stringify(data);
 					res.setHeader('Content-Type', 'text/plain');
 					res.setHeader('Content-Length', body.length);
-					console.log("X", data);
 					res.end(body);
 				},
 				'////': function() {
@@ -78,6 +77,37 @@ var getResponder = function(pattern, req, res) {
 	};
 	
 };
+
+/*
+
+user_email: { _id: email, user_id: uid }
+user: { _id: uid, name: str, color: str }
+user_password: { _id: uid, authorization_key: str, password: bin }
+
+= Registration
+Find email in emails():
+	Not Exists:
+		Create
+	Continue:
+		Look up UserId in Password()
+			Not Exists: Create Empty
+			Continue:
+				Update with new Authorization Key
+    
+
+= Activation
+	If no email in emails:
+		Not Exists:
+			Error
+		Exists:
+			Get UserId
+			Look up UserId / Authorization in Password:
+				Not Matches:
+					Error
+				Matches:
+					Write Password
+*/
+
 
 var wrapControllerFunctionForResponder = function(renderPattern, controllerFunction) {
 	return function(req, res, next) {
