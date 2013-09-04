@@ -1,4 +1,3 @@
-
 /**
  * Module dependencies.
  */
@@ -53,15 +52,26 @@ if ('development' == app.get('env')) {
 
 var getResponder = function(pattern, req, res) {
 	
-	return function(statusStr, data, validationErr, businessErr) {
+	return function(statusStr, data, validationErr, businessErr, serverErr) {
+		
+		var toTemplate = {
+			data
+		}
+		
+		var getTemplateRendererFor(status, viewPath) {
+			return function() {
+				res.status(status)
+					.render(
+						viewPath,
+						data
+					);
+			}
+		};
 		
 		var respondingFunction = renderRouter(
 			{
 				'html/user/register/ok': function() {
-					var body = 'Hello World ' + JSON.stringify(data);
-					res.setHeader('Content-Type', 'text/plain');
-					res.setHeader('Content-Length', body.length);
-					res.end(body);
+					res.render('user/re');
 				},
 				'////': function() {
 					res.status(404).end('NOT FOUND');

@@ -1,4 +1,12 @@
-extends ../layout
+extends ./layout
 
 block content
-	p promo stuff
+	header#page-header
+		if (false)
+			div#log-out
+				a(href="/") Logout
+		else
+			div#log-in
+				a(href="/user/register") Register
+				span &nbsp;or&nbsp;
+				a(href="/user/session") Login
