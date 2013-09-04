@@ -1,0 +1,26 @@
+extends ../layout
+
+block content
+
+	div#mozillaPersona Use 
+		a#mozillaPersonaLogin(href="#") Mozilla Login
+	
+	form(action="/session", method="post")
+		+print-errors()
+		ol
+			li
+				label(for="email") Email
+				input(type="email", name="email", id="email", value=input.email)
+			li
+				label(for="password") Password
+				input(type="password", name="password", id="password", value=input.password)
+			li
+				label(for="life") Life
+				select(name="life")
+					option(value="0C") Until Browser Close
+					option(value="1D") A Day
+					option(value="1W") A Week
+					option(value="2W") Two Weeks
+					option(value="1M") A Month
+			li
+				input(type="submit", class="positive", value="Log In")

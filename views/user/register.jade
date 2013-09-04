@@ -1,0 +1,18 @@
+extends ../layout
+
+block content
+
+	form(action="/register", method="post")
+		+print-errors()
+		ol
+			li
+				label(for="name") Name
+				input(type="text", name="name", id="name", value=input.name)
+			li
+				label(for="email") Email
+				input(type="email", name="email", id="email", value=input.email)
+			li
+				label(for="color") Color
+				input(type="text", name="color", id="color", value=input.color)
+			li.footer.buttons
+				input(type="submit", class="positive", value="register")
