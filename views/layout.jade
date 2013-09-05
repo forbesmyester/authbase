@@ -1,7 +1,15 @@
+mixin print-errors
+	- if (validation)
+		ul.errors
+			each error, field in validation
+				li
+					span.field= field
+					span.msg= error
+
 doctype 5
 html
-  head
-    title= title
-    link(rel='stylesheet', href='/stylesheets/style.css')
-  body
-    block content
+	head
+		title= title
+		link(rel='stylesheet', href='/stylesheets/style.css')
+	body
+		block content

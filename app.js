@@ -55,24 +55,77 @@ var getResponder = function(pattern, req, res) {
 	return function(statusStr, data, validationErr, businessErr, serverErr) {
 		
 		var toTemplate = {
-			data
+			data: data,
+			validationErr: validationErr,
+			businessErr: businessErr,
+			serverErr: serverErr
 		}
 		
-		var getTemplateRendererFor(status, viewPath) {
-			return function() {
-				res.status(status)
-					.render(
-						viewPath,
-						data
-					);
+		function getInputForTemplate() {
+			var r = {},
+				i,
+				k;
+			var inputs = [req.params, req.body, req.query];
+			for (i=0; i<inputs.length; i++) {
+				for (k in inputs[i]) {
+					if (inputs[i].hasOwnProperty(k)) {
+						r[k] = inputs[i][k];
+					}
+				}
 			}
-		};
+			return r;
+		}
+		
+		function getDataAllDataForTemplate() {
+			return {
+				input: getInputForTemplate(),
+				data: data,
+				validation: validationErr,
+				business: businessErr,
+				server: serverErr
+			}
+		}
+		
+		function getTemplateRendererFor(viewPath) {
+			var pathSplit = viewPath.split('/');
+			pathSplit.shift();
+			pathSplit.pop();
+			return pathSplit.join('/');
+		}
+		
+		function statusWordToHttpStatusCode(viewPath) {
+			return viewPath.split('/').pop();
+		}
+		
+		function changeRenderRouterPathToStatusAndTemplate(renderRouterPath) {
+			return function() {
+				
+				console.log(" Rendering: " +
+					getTemplateRendererFor(renderRouterPath) +
+					" with HTTP status " +
+					statusWordToHttpStatusCode(renderRouterPath) +
+					" and data " + 
+					JSON.stringify(getDataAllDataForTemplate())
+				);
+				
+				res.status(statusWordToHttpStatusCode(renderRouterPath))
+					.render(
+						getTemplateRendererFor(renderRouterPath),
+						getDataAllDataForTemplate()
+					)
+			}
+		}
 		
 		var respondingFunction = renderRouter(
 			{
-				'html/user/register/ok': function() {
-					res.render('user/re');
-				},
+				'html/user/register/ok':
+					changeRenderRouterPathToStatusAndTemplate(
+						'html/user/register/ok'
+					),
+				'html/index/ok':
+					changeRenderRouterPathToStatusAndTemplate(
+						'html/index/ok'
+					),
 				'////': function() {
 					res.status(404).end('NOT FOUND');
 				}
@@ -131,6 +184,12 @@ var wrapControllerFunctionForResponder = function(renderPattern, controllerFunct
 };
 
 app.get('/', wrapControllerFunctionForResponder(
+	':contentType/index/:status',
+	function(req, res, responder) {
+		responder('ok',{hi:'there'});
+	}
+));
+app.get('/user/register', wrapControllerFunctionForResponder(
 	':contentType/user/register/:status',
 	function(req, res, responder) {
 		responder('ok',{hi:'there'});
