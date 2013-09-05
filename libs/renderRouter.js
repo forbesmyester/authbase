@@ -1,7 +1,5 @@
 module.exports = function(routes, input) {
 	
-	console.log(routes, input);
-	
 	var inputSplit = input.split('/'),
 		inputLength = inputSplit.length,
 		k;
