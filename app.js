@@ -19,7 +19,7 @@ var emailSender = function(config, from, to, subjectTemplate, textTemplate, data
 		"BODY: " + hogan.compile(textTemplate).render(data)
 	].join("\n");
 	console.log(out);
-	next(0)
+	next(0);
 };
 
 var getResponseContentType = function(req) {
@@ -43,6 +43,7 @@ app.use(express.methodOverride());
 app.use(express.cookieParser('your secret here'));
 app.use(express.session());
 app.use(app.router);
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // development only
@@ -60,7 +61,7 @@ var getResponder = function(pattern, req, res) {
 			validationErr: validationErr,
 			businessErr: businessErr,
 			serverErr: serverErr
-		}
+		};
 		
 		function getInputForTemplate() {
 			var r = {},
@@ -84,7 +85,7 @@ var getResponder = function(pattern, req, res) {
 				validation: validationErr,
 				business: businessErr,
 				server: serverErr
-			}
+			};
 		}
 		
 		function getTemplateRendererFor(viewPath) {
@@ -125,7 +126,7 @@ var getResponder = function(pattern, req, res) {
 					.render(
 						getTemplateRendererFor(renderRouterPath),
 						getDataAllDataForTemplate()
-					)
+					);
 			};
 		}
 		
@@ -221,7 +222,7 @@ var dependencies = {
 			);
 		},1000);
 	}
-}
+};
 
 var wrapControllerFunctionForResponder = function(renderPattern, controllerFunction) {
 	return function(req, res, next) {
@@ -230,7 +231,7 @@ var wrapControllerFunctionForResponder = function(renderPattern, controllerFunct
 			req,
 			res
 		);
-		controllerFunction.call(this, req, res, responder)
+		controllerFunction.call(this, req, res, responder);
 	};
 };
 
