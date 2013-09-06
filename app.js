@@ -143,15 +143,19 @@ var getResponder = function(pattern, req, res) {
 							'/user/pending-activation'
 						);
 					},
-				'html///ok':
+				'html/user//validation_error':
+					changeRenderRouterPathToStatusAndTemplate(
+						renderRouterPath.replace(/validation_error$/,'ok')
+					),
+				'html/user//ok':
 					changeRenderRouterPathToStatusAndTemplate(renderRouterPath),
-				'html//ok':
+				'html/index/ok':
 					changeRenderRouterPathToStatusAndTemplate(renderRouterPath),
 				'///': function() {
-					res.status(404).end('NOT FOUND');
+					res.status(404).end(renderRouterPath + ' NOT FOUND');
 				},
 				'//': function() {
-					res.status(404).end('NOT FOUND');
+					res.status(404).end(renderRouterPath + ' NOT FOUND');
 				}
 			},
 			renderRouterPath
