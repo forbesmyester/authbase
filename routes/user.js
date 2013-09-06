@@ -205,7 +205,8 @@ module.exports.register.process = function(config, efvarl, emailSender, generate
 			);
 		};
 		
-		var setActivationPad = function(newRegistration, activationPad) {
+		var setActivationPad = function(newRegistration, newEmail, activationPad) {
+			
 			var send = function() {
 				sendActivationEmail(
 					config,
@@ -216,7 +217,7 @@ module.exports.register.process = function(config, efvarl, emailSender, generate
 					validated.data.name,
 					validated.data.color,
 					activationPad,
-					newRegistration,
+					newEmail,
 					responder
 				);
 			};
@@ -239,6 +240,10 @@ module.exports.register.process = function(config, efvarl, emailSender, generate
 				{$set: {activationPad: activationPad} },
 				{},
 				function(err, result) {
+					if (err == sFDb.ERROR_CODES.NO_RESULTS) {
+						//
+						return setActivationPad(true, false, activationPad);
+					}
 					if (err) {
 						throw new Error('ErrorUpdatingActivationPad: '+err);
 					}
@@ -262,7 +267,6 @@ module.exports.register.process = function(config, efvarl, emailSender, generate
 				color: validated.data.color
 			},
 			function(err) {
-				console.log(sFDb);
 				if (err == sFDb.ERROR_CODES.DUPLICATE_ID) {
 					return errorDuplicateUserId();
 				}
@@ -289,7 +293,7 @@ module.exports.register.process = function(config, efvarl, emailSender, generate
 								if (err) {
 									throw "UNKNOWN ERROR! " + JSON.stringify(err);
 								}
-								setActivationPad(newUser, result);
+								setActivationPad(newUser, newUser, result);
 							}
 						);
 					}

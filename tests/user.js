@@ -211,7 +211,58 @@ describe('Registration says',function() {
 		});
 		
 		it('attempting to create a user which already exists will only update' +
-			'the activationPad and send an activationPad email',function(done) {
+			'the activationPad and send an activationPad email (email record not existing)',function(done) {
+				
+			var activationPad = null;
+			
+			var to = null;
+			var data = null;
+			
+			var responder = function(status,data,vErrors,bErrors) {
+				expect(status).to.equal('accepted');
+				expect(to).to.equal(email);
+				done();
+			};
+			
+			var mockEmailSender = function(config, from, ito, subjectTemplate, textTemplate, idata, next) {
+				to = ito;
+				data = idata;
+				next(0);
+			};
+			
+			var newReq = {
+				accepts: function() {return 'text/html'; },
+				body: {name: 'John Jones', email: email, color: 'blue'}
+			};
+			
+			var dupEmailSFDb = {
+				insert: function(collection, document, next) {
+					if (collection == appConfig.user_email_collection) {
+						return next(SFDb.ERROR.DUPLICATE_ID);
+					}
+					return next(SFDb.ERROR.OK);
+				},
+				modifyOne: function(collection, query, update, options, callback) {
+					callback(SFDb.ERROR.NO_RESULTS);
+				},
+				ERROR_CODES: SFDb.ERROR
+			};
+			
+			userRoute.register.process(
+				appConfig,
+				efvarl,
+				mockEmailSender,
+				mockGenerateRandomString,
+				dupEmailSFDb,
+				req,
+				{},
+				responder
+			);
+
+		});
+		
+		it('attempting to create a user which already exists will only update' +
+			'the activationPad and send an activationPad email (email record existing)',function(done) {
 				
 			var activationPad = null;
 			

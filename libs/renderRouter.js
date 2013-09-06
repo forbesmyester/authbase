@@ -21,6 +21,6 @@ module.exports = function(routes, input) {
 			return routes[k]
 		}
 	} }
-	console.log("NULL");
+	console.log("Cound not find Render function for '" + input + "'");
 	return null;
 }

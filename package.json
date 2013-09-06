@@ -11,6 +11,7 @@
     "passport": "~0.1.17",
     "passport-persona": "~0.1.7",
     "curry-di": "~0.9.1",
+    "mongoskin": "~0.6.0",
     "curry": "~1.0.2",
     "hogan.js": "~2.0.0",
     "validator": "~1.5.1"

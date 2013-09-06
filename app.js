@@ -7,6 +7,7 @@ var routes = require('./routes');
 var user = require('./routes/user');
 var http = require('http');
 var path = require('path');
+var curryDi = require('curry-di');
 var renderRouter = require('./libs/renderRouter');
 
 var emailSender = function(config, from, to, subjectTemplate, textTemplate, data, next) {
@@ -93,8 +94,15 @@ var getResponder = function(pattern, req, res) {
 			return pathSplit.join('/');
 		}
 		
-		function statusWordToHttpStatusCode(viewPath) {
+		function statusWordFromViewPath(viewPath) {
 			return viewPath.split('/').pop();
+		}
+		
+		function statusCodeFromStatusWord(statusWord) {
+			if (statusWord == 'ok') { return 200; }
+			if (statusWord == 'accepted') { return 202; }
+			if (statusWord == 'created') { return 201; }
+			return 500;
 		}
 		
 		function changeRenderRouterPathToStatusAndTemplate(renderRouterPath) {
@@ -103,17 +111,22 @@ var getResponder = function(pattern, req, res) {
 				console.log(" Rendering: " +
 					getTemplateRendererFor(renderRouterPath) +
 					" with HTTP status " +
-					statusWordToHttpStatusCode(renderRouterPath) +
+					statusCodeFromStatusWord(
+						statusWordFromViewPath(renderRouterPath)
+					) +
 					" and data " + 
 					JSON.stringify(getDataAllDataForTemplate())
 				);
 				
-				res.status(statusWordToHttpStatusCode(renderRouterPath))
+				res.status(
+					statusCodeFromStatusWord(
+						statusWordFromViewPath(renderRouterPath))
+					)
 					.render(
 						getTemplateRendererFor(renderRouterPath),
 						getDataAllDataForTemplate()
 					)
-			}
+			};
 		}
 		
 		var respondingFunction = renderRouter(
@@ -122,10 +135,15 @@ var getResponder = function(pattern, req, res) {
 					changeRenderRouterPathToStatusAndTemplate(
 						'html/user/register/ok'
 					),
+				'html/user/register/accepted': 
+					function() {
+						res.redirect(
+							statusCodeFromStatusWord(statusStr),
+							'/user/pending-activation'
+						);
+					},
 				'html/index/ok':
-					changeRenderRouterPathToStatusAndTemplate(
-						'html/index/ok'
-					),
+					changeRenderRouterPathToStatusAndTemplate('html/index/ok'),
 				'////': function() {
 					res.status(404).end('NOT FOUND');
 				}
@@ -171,6 +189,39 @@ Find email in emails():
 					Write Password
 */
 
+var appConfig = require('./config');
+
+var dependencies = {
+	config: appConfig,
+	efvarl: require('./libs/efvarl'),
+	sFDb: 
+		require('./libs/SFDb').createInstance(
+			require('mongoskin').db(
+				appConfig.database_host +
+					':' +
+					appConfig.database_port +
+					'/' +
+					appConfig.database_name,
+				{w:true}
+			)
+		),
+	emailSender: emailSender,
+	generateRandomString: function(length, next) {
+		setTimeout(function() {
+			var s = "kjfds453fgukjljmmhfda9j4jsjfda" + new Date().getTime();
+			next(
+				0,
+				s.split('')
+					.reverse()
+					.join('')
+					.substring(0, length)
+					.split('')
+					.reverse()
+					.join('')
+			);
+		},1000);
+	}
+}
 
 var wrapControllerFunctionForResponder = function(renderPattern, controllerFunction) {
 	return function(req, res, next) {
@@ -189,11 +240,24 @@ app.get('/', wrapControllerFunctionForResponder(
 		responder('ok',{hi:'there'});
 	}
 ));
+
 app.get('/user/register', wrapControllerFunctionForResponder(
 	':contentType/user/register/:status',
 	function(req, res, responder) {
 		responder('ok',{hi:'there'});
 	}
+));
+
+app.get('/user/:_id/activate/:activationPad', wrapControllerFunctionForResponder(
+	':contentType/user/activate/:status',
+	function(req, res, responder) {
+		responder('ok',{hi:'there'});
+	}
+));
+
+app.post('/user/register', wrapControllerFunctionForResponder(
+	':contentType/user/register/:status',
+	curryDi(dependencies, user.register.process)
 ));
 
 http.createServer(app).listen(app.get('port'), function(){
