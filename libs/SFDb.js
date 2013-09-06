@@ -27,6 +27,7 @@ var getDuplicateKeyField = function(err) {
 
 var SFDb = function(mongoskinConnection) {
 	this._mongoskinConnection = mongoskinConnection;
+	this.ERROR_CODES = ERROR;
 };
 
 SFDb.prototype.find = function(collection, query, options, callback) {
