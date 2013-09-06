@@ -17,7 +17,6 @@ module.exports = function(routes, input) {
 	
 	for (k in routes) { if (routes.hasOwnProperty(k)) {
 		if (matches(k.split('/'),inputSplit)) {
-			console.log(k);
 			return routes[k]
 		}
 	} }

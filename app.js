@@ -136,16 +136,27 @@ var getResponder = function(pattern, req, res) {
 		
 		var respondingFunction = renderRouter(
 			{
-				'html/user/register/accepted': 
+				'html/user/register/accepted':
 					function() {
 						res.redirect(
 							statusCodeFromStatusWord(statusStr),
 							'/user/pending-activation'
 						);
 					},
+				'html/user/activate/accepted':
+					function() {
+						res.redirect(
+							statusCodeFromStatusWord(statusStr),
+							'/user/activated'
+						);
+					},
 				'html/user//validation_error':
 					changeRenderRouterPathToStatusAndTemplate(
 						renderRouterPath.replace(/validation_error$/,'ok')
+					),
+				'html/user//not_found':
+					changeRenderRouterPathToStatusAndTemplate(
+						renderRouterPath.replace(/not_found$/,'ok')
 					),
 				'html/user//ok':
 					changeRenderRouterPathToStatusAndTemplate(renderRouterPath),
@@ -214,21 +225,23 @@ var dependencies = {
 			)
 		),
 	emailSender: emailSender,
-	generateRandomString: function(length, next) {
-		setTimeout(function() {
-			var s = "kjfds453fgukjljmmhfda9j4jsjfda" + new Date().getTime();
-			next(
-				0,
-				s.split('')
-					.reverse()
-					.join('')
-					.substring(0, length)
-					.split('')
-					.reverse()
-					.join('')
-			);
-		},1000);
-	}
+	hasher: require('./libs/utils.crypto').hasher,
+	generateRandomString: require('./libs/utils.crypto').generateRandomString
+	//generateRandomString: function(length, next) {
+	//	setTimeout(function() {              
+	//		var s = "kjfds453fgukjljmmhfda9j4jsjfda" + new Date().getTime();
+	//		next(
+	//			0,
+	//			s.split('')
+	//				.reverse()
+	//				.join('')
+	//				.substring(0, length)
+	//				.split('')
+	//				.reverse()
+	//				.join('')
+	//		);
+	//	},1000);
+	//}
 };
 
 var wrapControllerFunctionForResponder = function(renderPattern, controllerFunction) {
@@ -245,22 +258,25 @@ var wrapControllerFunctionForResponder = function(renderPattern, controllerFunct
 app.get('/', wrapControllerFunctionForResponder(
 	':contentType/index/:status',
 	function(req, res, responder) {
-		responder('ok',{hi:'there'});
+		responder('ok');
 	}
 ));
 
 app.get('/user/register', wrapControllerFunctionForResponder(
 	':contentType/user/register/:status',
 	function(req, res, responder) {
-		responder('ok',{hi:'there'});
+		responder('ok');
 	}
 ));
 
 app.get('/user/:_id/activate/:activationPad', wrapControllerFunctionForResponder(
 	':contentType/user/activate/:status',
-	function(req, res, responder) {
-		responder('ok',{hi:'there'});
-	}
+	curryDi(dependencies, user.activate.get)
+));
+
+app.patch('/user/:_id/activate/:activationPad', wrapControllerFunctionForResponder(
+	':contentType/user/activate/:status',
+	curryDi(dependencies, user.activate.process)
 ));
 
 app.get('/user/pending-activation', wrapControllerFunctionForResponder(

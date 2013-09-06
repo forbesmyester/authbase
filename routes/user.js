@@ -205,14 +205,14 @@ module.exports.register.process = function(config, efvarl, emailSender, generate
 			);
 		};
 		
-		var setActivationPad = function(newRegistration, newEmail, activationPad) {
+		var setActivationPad = function(newRegistration, newEmail, userId, activationPad) {
 			
 			var send = function() {
 				sendActivationEmail(
 					config,
 					emailSender,
 					res,
-					_id,
+					userId,
 					validated.data.email,
 					validated.data.name,
 					validated.data.color,
@@ -225,7 +225,11 @@ module.exports.register.process = function(config, efvarl, emailSender, generate
 			if (newRegistration) {
 				return sFDb.insert(
 					config.user_password_collection,
-					{_id: _id, activationPad: activationPad},
+					{
+						_id: userId,
+						activationPad: activationPad,
+						email: validated.data.email
+					},
 					function(err) {
 						if (err) {
 							throw "aUNKNOWN ERROR! " + JSON.stringify(err);
@@ -236,13 +240,18 @@ module.exports.register.process = function(config, efvarl, emailSender, generate
 			}
 			sFDb.modifyOne(
 				config.user_password_collection,
-				{_id: _id},
-				{$set: {activationPad: activationPad} },
+				{_id: userId},
+				{$set: {activationPad: activationPad, email: validated.data.email} },
 				{},
 				function(err, result) {
 					if (err == sFDb.ERROR_CODES.NO_RESULTS) {
 						//
-						return setActivationPad(true, false, activationPad);
+						return setActivationPad(
+							true,
+							false,
+							userId,
+							activationPad
+						);
 					}
 					if (err) {
 						throw new Error('ErrorUpdatingActivationPad: '+err);
@@ -256,6 +265,40 @@ module.exports.register.process = function(config, efvarl, emailSender, generate
 					send();
 				}
 			);
+		};
+		
+		var duplicateEmail = function(oldId) {
+			
+			// TODO: Write script to clean up old user_collection
+			// records that have been left.
+			
+			sFDb.findOne(
+				config.user_email_collection,
+				{ _id: validated.data.email },
+				{},
+				function(err, userRec) {
+					if (err) {
+						throw "zUNKNOWN ERROR! " + JSON.stringify(err);
+					}
+					generateRandomString(
+						config.activation_pad_length,
+						function(err, activationPad) {
+							if (err) {
+								throw "UNKNOWN ERROR! " + JSON.stringify(err);
+							}
+							setActivationPad(
+								false,
+								true,
+								userRec.userId,
+								activationPad
+							);
+						}
+					);
+				}
+			);
+			
+			
+			
 		};
 		
 		sFDb.insert(
@@ -279,13 +322,7 @@ module.exports.register.process = function(config, efvarl, emailSender, generate
 					function(err) {
 						var newUser = true;
 						if (err == sFDb.ERROR_CODES.DUPLICATE_ID) {
-							// TODO: Write script to clean up old user_collection
-							// records that have been left.
-							newUser = false;
-							err = 0;
-						}
-						if (err) {
-							throw "UNKNOWN ERROR! " + JSON.stringify(err);
+							return duplicateEmail(_id);
 						}
 						return generateRandomString(
 							config.activation_pad_length,
@@ -293,7 +330,7 @@ module.exports.register.process = function(config, efvarl, emailSender, generate
 								if (err) {
 									throw "UNKNOWN ERROR! " + JSON.stringify(err);
 								}
-								setActivationPad(newUser, newUser, result);
+								setActivationPad(true, true, _id, result);
 							}
 						);
 					}
@@ -325,3 +362,141 @@ module.exports.register.process = function(config, efvarl, emailSender, generate
 		});
 	}());
 };
+
+module.exports.activate = {};
+
+/**
+ * If the Id/ActivationPad combination is found a `/user/activate/html/get/ok` response will be sent. This will require the website user to input the Email of the User which is being activated, the ActivationPad and a Password.
+ * 
+ * If the Id or ActivationPad does not pass validation or is not valid either a `/user/activate/html/get/validation_error` or `/user/activate/html/get/not_found` will be sent respectively.
+ */
+module.exports.activate.get = function(config, efvarl, sFDb, req, res, responder) {
+	
+	var validated = efvarl(
+		{
+			_id: checkingStructures.user_id,
+			activationPad: checkingStructures.activationPad
+		},
+		req.params
+	);
+	
+	if (validated.hasErrors) {
+		return responder('validation_error',{},validated.errors);
+	}
+	
+	var qry = {
+		_id: validated.data._id,
+		activationPad: validated.data.activationPad
+	};
+
+	sFDb.findOne(
+		config.user_password_collection,
+		qry,
+		{},
+		function(err) {
+			
+			if (err == sFDb.ERROR_CODES.NO_RESULTS) {
+				return responder(
+					'not_found',
+					{},
+					{ 'activationPad': 'Could not find Activation Pad / Id' }
+				);
+			}
+			
+			if (err != sFDb.ERROR_CODES.OK) { throw err; }
+			
+			return responder('ok',{});
+
+		}
+	);
+	  
+};
+
+
+/**
+ * ### PATCH to /user/[id]/activate/[activationPad] (HTML Only)
+ * 
+ * #### Input
+ * 
+ * * id: The Id of the User.
+ * * activationPad: The ActivationPad of the User.
+ * * password: The password you wish to give the User.
+ * * email: Must match the email of the User
+ * 
+ * #### Processing
+ * 
+ * If the input is invalid a `/user/activate/html/patch/validation_error` response will be sent.
+ * 
+ * If the id/activationPad/email combination does not identify a user a `/user/activate/html/patch/not_found` will be sent.
+ *
+ * If the id/activationPad is valid then User.password will be set to the supplied password and the `/user/activate/html/patch/accepted` response will be sent.
+ */
+module.exports.activate.process = function(config, efvarl, generateRandomString, hasher, sFDb, req, res, responder) {
+	
+	var validated = efvarl(
+		{
+			_id: checkingStructures.user_id,
+			activationPad: checkingStructures.activationPad,
+			email: checkingStructures.email,
+			password: checkingStructures.password
+		},
+		require('node.extend').call(
+			this,
+			true,
+			{},
+			req.body,
+			req.params
+		)
+	);
+	
+	if (validated.hasErrors) {
+		return responder(
+			'validation_error',
+			{},
+			validated.errors
+		);
+	}
+
+	var qry = {
+		_id: validated.data._id,
+		email: validated.data.email,
+		activationPad: validated.data.activationPad
+	};
+	
+	hasher(validated.data.password,function(err,hashedPassword) {
+		if (err) { throw err; }
+		
+		sFDb.modifyOne(
+			config.user_password_collection,
+			qry,
+			{ 
+				$set:{password: hashedPassword},
+				$unset:{activationPad: 1, email: 1}
+			},
+			{},
+			function(err) {
+				
+				if (err === sFDb.ERROR_CODES.NO_RESULTS) {
+					return responder(
+						'not_found',
+						{},
+						{ 'email,activationPad': 'The email/activation pad combination supplied is invalid' }
+					);
+				}
+				
+				if (err) { throw err; }
+				
+				return responder(
+					'accepted',
+					{userId: validated.data._id},
+					{},
+					{}
+				);
+				
+			}
+		);
+	});
+	
+};
+
+

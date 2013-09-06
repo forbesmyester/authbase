@@ -211,57 +211,6 @@ describe('Registration says',function() {
 		});
 		
 		it('attempting to create a user which already exists will only update' +
-			'the activationPad and send an activationPad email (email record not existing)',function(done) {
-				
-			var activationPad = null;
-			
-			var to = null;
-			var data = null;
-			
-			var responder = function(status,data,vErrors,bErrors) {
-				expect(status).to.equal('accepted');
-				expect(to).to.equal(email);
-				done();
-			};
-			
-			var mockEmailSender = function(config, from, ito, subjectTemplate, textTemplate, idata, next) {
-				to = ito;
-				data = idata;
-				next(0);
-			};
-			
-			var newReq = {
-				accepts: function() {return 'text/html'; },
-				body: {name: 'John Jones', email: email, color: 'blue'}
-			};
-			
-			var dupEmailSFDb = {
-				insert: function(collection, document, next) {
-					if (collection == appConfig.user_email_collection) {
-						return next(SFDb.ERROR.DUPLICATE_ID);
-					}
-					return next(SFDb.ERROR.OK);
-				},
-				modifyOne: function(collection, query, update, options, callback) {
-					callback(SFDb.ERROR.NO_RESULTS);
-				},
-				ERROR_CODES: SFDb.ERROR
-			};
-			
-			userRoute.register.process(
-				appConfig,
-				efvarl,
-				mockEmailSender,
-				mockGenerateRandomString,
-				dupEmailSFDb,
-				req,
-				{},
-				responder
-			);
-
-		});
-		
-		it('attempting to create a user which already exists will only update' +
 			'the activationPad and send an activationPad email (email record existing)',function(done) {
 				
 			var activationPad = null;
@@ -271,6 +220,7 @@ describe('Registration says',function() {
 			
 			var responder = function(status,data,vErrors,bErrors) {
 				expect(status).to.equal('accepted');
+				expect(data._id).to.equal('J123');
 				expect(to).to.equal(email);
 				done();
 			};
@@ -292,6 +242,9 @@ describe('Registration says',function() {
 						return next(SFDb.ERROR.DUPLICATE_ID);
 					}
 					return next(SFDb.ERROR.OK);
+				},
+				findOne: function(collection, query, options, callback) {
+					return callback(SFDb.ERROR.OK, {email: email, userId: 'J123'} );
 				},
 				modifyOne: function(collection, query, update, options, callback) {
 					expect(update.$set.activationPad).to.match(/^aaa/);
@@ -324,5 +277,185 @@ describe('Registration says',function() {
 		});
 	});
 	
+});
+
+describe('Requesting activation form',function() {
+	
+	var db = require('mongoskin').db(
+			appConfig.database_host +
+				':' +
+				appConfig.database_port +
+				'/' +
+				'syncitserv_user_js',
+			{w:1}
+		),
+		utils = {
+			sFDb: SFDb.createInstance(db),
+			validator: efvarl,
+			crypto: require('../libs/utils.crypto.js')
+		};
+
+	var getUserDetailsForTest = function() {
+		
+		var r = {
+			email: 'jack.'+(new Date().getTime()/1000)+'.jenkins@hisdomain.com',
+			name: 'Jack Jenkins',
+			color: 'red'
+		};
+		return r;
+		
+	};
+	
+	
+	it('errors if it cannot find the record', function(done) {
+		
+		var requestHandler = function (status,data) {
+			expect(status).to.equal('not_found');
+			done();
+		};
+		
+		var sFDb = {
+			ERROR_CODES: SFDb.ERROR,
+			findOne: function(collection, query, options, callback) {
+				expect(query._id).to.equal('invalid');
+				callback(SFDb.ERROR.NO_RESULTS);
+			}
+		};
+		
+		var req = {
+			params: { _id: 'invalid', activationPad: 'zzzz' },
+			accepts: function() { return 'text/html'; }
+		};
+		
+		userRoute.activate.get({}, efvarl, sFDb, req, {}, requestHandler);
+	});
+	
+	it('responds with ok if it exists', function(done) {
+		
+		var requestHandler = function (status,data) {
+			expect(status).to.equal('ok');
+			done();
+		};
+		
+		var sFDb = {
+			ERROR_CODES: SFDb.ERROR,
+			findOne: function(collection, query, options, callback) {
+				expect(query._id).to.equal('id');
+				callback(SFDb.ERROR.OK,{});
+			}
+		};
+		
+		var req = {
+			params: { _id: 'id', activationPad: 'ac' },
+			accepts: function() { return 'text/html'; }
+		};
+		
+		userRoute.activate.get({}, efvarl, sFDb, req, {}, requestHandler);
+	});
+});
+		
+describe('Processing the activation',function() {
+		
+	it('fail if it cannot find the Email in process',function(done) {
+
+		var responder = function(status,data,vErr,bErr) {
+			expect(
+				vErr.hasOwnProperty('email,activationPad')
+			).to.be(true);
+			done();
+		};
+		
+		var activationReq = {
+			accepts: function() { return 'text/html'; },
+			body: {
+				password: 'abc123',
+				email: 'jack@twentysomething.com'
+			},
+			params: {
+				_id: 'abc',
+				activationPad: 'xyz'
+			}
+		};
+		
+		var sFDb = {
+			ERROR_CODES: SFDb.ERROR,
+			modifyOne: function(collection, query, update, options, callback) {
+				expect(update.$set.password).to.equal('321cba');
+				expect(query.activationPad).to.equal('xyz');
+				expect(query._id).to.equal('abc');
+				callback(SFDb.ERROR.NO_RESULTS)
+			}
+		};
+		
+		userRoute.activate.process(
+			appConfig,
+			efvarl,
+			mockGenerateRandomString,
+			mockHasher,
+			sFDb,
+			activationReq,
+			{},
+			responder
+		);
+		
+	});
+	
+	it('will hash the password and remove the activation pad on success',function(done) {
+		
+		var responder = function(status,data,vErr,bErr) {
+			expect(Object.getOwnPropertyNames(vErr).length).to.equal(0);
+			expect(data.userId).to.equal('99');
+			done();
+		};
+		
+		var activationReq = {
+			accepts: function() { return 'text/html'; },
+			body: {
+				password: 'abc123',
+				email: 'jack@twentyfour.com'
+			},
+			params: {
+				_id: '99',
+				activationPad: 'uvw'
+			}
+		};
+		
+		var sFDb = {
+			ERROR_CODES: SFDb.ERROR,
+			modifyOne: function(collection, query, update, options, callback) {
+				expect(update.$set.password).to.equal('321cba');
+				expect(update.$unset).to.have.property('activationPad');
+				expect(query.activationPad).to.equal('uvw');
+				expect(query.email).to.equal('jack@twentyfour.com');
+				expect(query._id).to.equal('99');
+				callback(SFDb.ERROR.OK,{});
+			},
+			insert: function(collection, document, next) {
+				next(SFDb.ERROR.OK);
+			},
+
+		};
+			
+		userRoute.activate.process(
+			appConfig,
+			efvarl,
+			mockGenerateRandomString,
+			mockHasher,
+			sFDb,
+			activationReq,
+			{
+				cookie: function(k,v) {
+					if (k === 'userId') {
+						expect(v).to.equal('99');
+					}
+					if (k === 'auth') {
+						expect(v).to.match(/^aaaa/);
+					}
+				}
+			},
+			responder
+		);
+		
+	});
 });
 

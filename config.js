@@ -1,6 +1,6 @@
 module.exports = {
 
-	"database_host": '127.0.0.1',
+	"database_host": '192.168.122.28',
 	"database_port": '27017',
 	"database_name": 'authbase',
 	"id_length": 8,

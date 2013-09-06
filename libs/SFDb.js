@@ -79,7 +79,18 @@ SFDb.prototype.modifyOne = function(collection, query, update, options, callback
 		return r;
 	}());
 
-	var myOptions = {'new': true, upsert: false, multi: false};
+	var myOptions = {'new': true, upsert: false, multi: false},
+		k;
+	
+	// Test then enable this...
+	//
+	//for (k in myOptions) {
+	//	if (options.hasOwnProperty(k)) {
+	//		if (k !== null) {
+	//			myOptions[k] = options[k];
+	//		}
+	//	}
+	//}
 
 	this._mongoskinConnection.collection(collection).findAndModify(
 		query,
