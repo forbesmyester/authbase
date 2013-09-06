@@ -130,12 +130,12 @@ var getResponder = function(pattern, req, res) {
 			};
 		}
 		
+		var renderRouterPath = pattern
+				.replace(':status', statusStr)
+				.replace(':contentType', getResponseContentType(req));
+		
 		var respondingFunction = renderRouter(
 			{
-				'html/user/register/ok':
-					changeRenderRouterPathToStatusAndTemplate(
-						'html/user/register/ok'
-					),
 				'html/user/register/accepted': 
 					function() {
 						res.redirect(
@@ -143,15 +143,18 @@ var getResponder = function(pattern, req, res) {
 							'/user/pending-activation'
 						);
 					},
-				'html/index/ok':
-					changeRenderRouterPathToStatusAndTemplate('html/index/ok'),
-				'////': function() {
+				'html///ok':
+					changeRenderRouterPathToStatusAndTemplate(renderRouterPath),
+				'html//ok':
+					changeRenderRouterPathToStatusAndTemplate(renderRouterPath),
+				'///': function() {
+					res.status(404).end('NOT FOUND');
+				},
+				'//': function() {
 					res.status(404).end('NOT FOUND');
 				}
 			},
-			pattern
-				.replace(':status', statusStr)
-				.replace(':contentType', getResponseContentType(req))
+			renderRouterPath
 		);
 		
 		respondingFunction.call(this);
@@ -253,6 +256,13 @@ app.get('/user/:_id/activate/:activationPad', wrapControllerFunctionForResponder
 	':contentType/user/activate/:status',
 	function(req, res, responder) {
 		responder('ok',{hi:'there'});
+	}
+));
+
+app.get('/user/pending-activation', wrapControllerFunctionForResponder(
+	':contentType/user/pending-activation/:status',
+	function(req, res, responder) {
+		responder('ok');
 	}
 ));
 
