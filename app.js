@@ -7,8 +7,12 @@ var routes = require('./routes');
 var user = require('./routes/user');
 var http = require('http');
 var path = require('path');
+var flash = require('connect-flash');
 var curryDi = require('curry-di');
 var renderRouter = require('./libs/renderRouter');
+var passport = require('passport'),
+	LocalStrategy = require('passport-local').Strategy;
+var appConfig = require('./config');
 
 var emailSender = function(config, from, to, subjectTemplate, textTemplate, data, next) {
 	var hogan = require("hogan.js");
@@ -40,8 +44,11 @@ app.use(express.favicon());
 app.use(express.logger('dev'));
 app.use(express.bodyParser());
 app.use(express.methodOverride());
-app.use(express.cookieParser('your secret here'));
+app.use(express.cookieParser(appConfig.cookie_secret));
 app.use(express.session());
+app.use(flash());
+app.use(passport.initialize());
+app.use(passport.session());
 app.use(app.router);
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -51,6 +58,41 @@ if ('development' == app.get('env')) {
 	console.log("DEVELOPMENT MODE");
 	app.use(express.errorHandler());
 }
+
+var dependencies = {
+	config: appConfig,
+	efvarl: require('./libs/efvarl'),
+	sFDb: 
+		require('./libs/SFDb').createInstance(
+			require('mongoskin').db(
+				appConfig.database_host +
+					':' +
+					appConfig.database_port +
+					'/' +
+					appConfig.database_name,
+				{w:true}
+			)
+		),
+	emailSender: emailSender,
+	hasher: require('./libs/utils.crypto').hasher,
+	generateRandomString: require('./libs/utils.crypto').generateRandomString,
+	checkAgainstHash: require('./libs/utils.crypto').checkAgainstHash
+};
+
+passport.use(new LocalStrategy(
+	{ usernameField: 'email' },
+	curryDi(dependencies, user.passportCheck)
+));
+
+passport.serializeUser(function(userId, done) {
+	console.log("SER: ", user);
+	done(null, userId);
+});
+
+passport.deserializeUser(function(userId, done) {
+	console.log("DESER: ", userId);
+	done( null, userId );
+});
 
 var getResponder = function(pattern, req, res) {
 	
@@ -208,42 +250,6 @@ Find email in emails():
 					Write Password
 */
 
-var appConfig = require('./config');
-
-var dependencies = {
-	config: appConfig,
-	efvarl: require('./libs/efvarl'),
-	sFDb: 
-		require('./libs/SFDb').createInstance(
-			require('mongoskin').db(
-				appConfig.database_host +
-					':' +
-					appConfig.database_port +
-					'/' +
-					appConfig.database_name,
-				{w:true}
-			)
-		),
-	emailSender: emailSender,
-	hasher: require('./libs/utils.crypto').hasher,
-	generateRandomString: require('./libs/utils.crypto').generateRandomString
-	//generateRandomString: function(length, next) {
-	//	setTimeout(function() {              
-	//		var s = "kjfds453fgukjljmmhfda9j4jsjfda" + new Date().getTime();
-	//		next(
-	//			0,
-	//			s.split('')
-	//				.reverse()
-	//				.join('')
-	//				.substring(0, length)
-	//				.split('')
-	//				.reverse()
-	//				.join('')
-	//		);
-	//	},1000);
-	//}
-};
-
 var wrapControllerFunctionForResponder = function(renderPattern, controllerFunction) {
 	return function(req, res, next) {
 		var responder = getResponder(
@@ -291,6 +297,24 @@ app.post('/user/register', wrapControllerFunctionForResponder(
 	curryDi(dependencies, user.register.process)
 ));
 
-http.createServer(app).listen(app.get('port'), function(){
+app.get('/user/session', wrapControllerFunctionForResponder(
+	':contentType/user/session/:status',
+	function(req, res, responder) {
+		responder('ok', {}, req.flash());
+	}
+));
+
+app.post('/user/session',
+	passport.authenticate(
+		'local',
+		{
+			successRedirect: '/',
+			failureRedirect: '/user/session',
+			failureFlash: true
+		}
+	)
+);
+
+http.createServer(app).listen(app.get('port'), function() {
   console.log('Express server listening on port ' + app.get('port'));
 });

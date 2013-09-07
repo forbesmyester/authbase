@@ -19,7 +19,7 @@ var mockGenerateRandomString = function(l, next) {
 
 var mockHasher = function(str, next) {
 	next(0, str.split('').reverse().join(''));
-}
+};
 
 var mockCheckAgainstHash = function(inputted, hashedPassword, next) {
 	if (inputted.split('').reverse().join('') == hashedPassword) {
@@ -142,6 +142,7 @@ describe('Registration says',function() {
 	
 		it('will feed back error information and your own data', function(done) {
 			var responseFunc = function(status,data,vErrors,bErrors) {
+				expect(bErrors).to.eql({});
 				expect(vErrors.hasOwnProperty('color')).to.equal(true);
 				done();
 			};
@@ -178,6 +179,8 @@ describe('Registration says',function() {
 			};
 			
 			var responseFunc = function(status,data,vErrors,bErrors) {
+				expect(bErrors).to.eql({});
+				expect(vErrors).to.eql({});
 				expect(to).to.equal(email);
 				expect(data._id).to.match(/^aa/);
 				expect(data.hasOwnProperty('activationPad')).to.equal(false);
@@ -187,13 +190,11 @@ describe('Registration says',function() {
 			var sFDb = { inserts: [] };
 			// sFDb.successfulModifyOne = function(collection, query, update, options, callback)
 			sFDb.insert = function(collection, document, next) {
-				setTimeout(function() {
-					sFDb.inserts.push({
-						document: document,
-						collection: collection
-					});
-					next(SFDb.ERROR.OK);
-				},1);
+				sFDb.inserts.push({
+					document: document,
+					collection: collection
+				});
+				next(SFDb.ERROR.OK);
 			};
 			sFDb.ERROR_CODES = SFDb.ERROR;
 			
@@ -213,12 +214,12 @@ describe('Registration says',function() {
 		it('attempting to create a user which already exists will only update' +
 			'the activationPad and send an activationPad email (email record existing)',function(done) {
 				
-			var activationPad = null;
-			
 			var to = null;
 			var data = null;
 			
 			var responder = function(status,data,vErrors,bErrors) {
+				expect(vErrors).to.eql({});
+				expect(bErrors).to.eql({});
 				expect(status).to.equal('accepted');
 				expect(data._id).to.equal('J123');
 				expect(to).to.equal(email);
@@ -229,11 +230,6 @@ describe('Registration says',function() {
 				to = ito;
 				data = idata;
 				next(0);
-			};
-			
-			var newReq = {
-				accepts: function() {return 'text/html'; },
-				body: {name: 'John Jones', email: email, color: 'blue'}
 			};
 			
 			var dupEmailSFDb = {
@@ -281,35 +277,9 @@ describe('Registration says',function() {
 
 describe('Requesting activation form',function() {
 	
-	var db = require('mongoskin').db(
-			appConfig.database_host +
-				':' +
-				appConfig.database_port +
-				'/' +
-				'syncitserv_user_js',
-			{w:1}
-		),
-		utils = {
-			sFDb: SFDb.createInstance(db),
-			validator: efvarl,
-			crypto: require('../libs/utils.crypto.js')
-		};
-
-	var getUserDetailsForTest = function() {
-		
-		var r = {
-			email: 'jack.'+(new Date().getTime()/1000)+'.jenkins@hisdomain.com',
-			name: 'Jack Jenkins',
-			color: 'red'
-		};
-		return r;
-		
-	};
-	
-	
 	it('errors if it cannot find the record', function(done) {
 		
-		var requestHandler = function (status,data) {
+		var requestHandler = function (status) {
 			expect(status).to.equal('not_found');
 			done();
 		};
@@ -332,7 +302,7 @@ describe('Requesting activation form',function() {
 	
 	it('responds with ok if it exists', function(done) {
 		
-		var requestHandler = function (status,data) {
+		var requestHandler = function (status) {
 			expect(status).to.equal('ok');
 			done();
 		};
@@ -359,9 +329,11 @@ describe('Processing the activation',function() {
 	it('fail if it cannot find the Email in process',function(done) {
 
 		var responder = function(status,data,vErr,bErr) {
+			expect(data).to.eql({});
 			expect(
 				vErr.hasOwnProperty('email,activationPad')
 			).to.be(true);
+			expect(bErr).to.eql({});
 			done();
 		};
 		
@@ -383,7 +355,7 @@ describe('Processing the activation',function() {
 				expect(update.$set.password).to.equal('321cba');
 				expect(query.activationPad).to.equal('xyz');
 				expect(query._id).to.equal('abc');
-				callback(SFDb.ERROR.NO_RESULTS)
+				callback(SFDb.ERROR.NO_RESULTS);
 			}
 		};
 		
@@ -403,6 +375,7 @@ describe('Processing the activation',function() {
 	it('will hash the password and remove the activation pad on success',function(done) {
 		
 		var responder = function(status,data,vErr,bErr) {
+			expect(bErr).to.eql({});
 			expect(Object.getOwnPropertyNames(vErr).length).to.equal(0);
 			expect(data.userId).to.equal('99');
 			done();
@@ -432,7 +405,7 @@ describe('Processing the activation',function() {
 			},
 			insert: function(collection, document, next) {
 				next(SFDb.ERROR.OK);
-			},
+			}
 
 		};
 			
@@ -459,3 +432,204 @@ describe('Processing the activation',function() {
 	});
 });
 
+describe('can authenticate using passport interface',function() {
+		
+	it('will return a proper error message when email is wrong',function(done) {
+		
+		var sFDb = {
+			ERROR_CODES: SFDb.ERROR,
+			findOne: function(collection, query, options, callback) {
+				expect(query._id).to.equal('a');
+				callback(SFDb.ERROR.NO_RESULTS);
+			}
+		};
+		
+		userRoute.passportCheck(
+			appConfig,
+			mockCheckAgainstHash,
+			sFDb,
+			'a',
+			'b',
+			function(err, user, messageObj) {
+				expect(err).to.equal(null);
+				expect(user).to.equal(false);
+				expect(messageObj).to.have.property('message');
+				expect(
+					messageObj.message
+				).to.equal(
+					appConfig.messages.wrong_username_password
+				);
+				done();
+			}
+		);
+		
+	});
+	
+	it('will return a proper error message when password is not found',function(done) {
+		
+		var sFDb = {
+			ERROR_CODES: SFDb.ERROR,
+			findOne: function(collection, query, options, callback) {
+				if (collection == appConfig.user_email_collection) {
+					expect(query._id).to.equal('abc@abc.com');
+					return callback(
+						SFDb.ERROR.OK,
+						{ _id: 'abc@abc.com', userId: 'abc' }
+					);
+				}
+				expect(query._id).to.equal('abc');
+				callback(SFDb.ERROR.NO_RESULTS);
+			}
+		};
+		
+		userRoute.passportCheck(
+			appConfig,
+			mockCheckAgainstHash,
+			sFDb,
+			'abc@abc.com',
+			'b',
+			function(err, user, messageObj) {
+				expect(err).to.equal(null);
+				expect(user).to.equal(false);
+				expect(messageObj).to.have.property('message');
+				expect(
+					messageObj.message
+				).to.equal(
+					appConfig.messages.wrong_username_password
+				);
+				done();
+			}
+		);
+		
+	});
+	
+	it('will return a proper error message when password is not correct',function(done) {
+		
+		var sFDb = {
+			ERROR_CODES: SFDb.ERROR,
+			findOne: function(collection, query, options, callback) {
+				if (collection == appConfig.user_email_collection) {
+					expect(query._id).to.equal('abc@abc.com');
+					return callback(
+						SFDb.ERROR.OK,
+						{ _id: 'abc@abc.com', userId: 'abc' }
+					);
+				}
+				expect(query._id).to.equal('abc');
+				return callback(
+					SFDb.ERROR.OK,
+					{ _id: 'abc@abc.com', password: 'xxx' }
+				);
+			}
+		};
+		
+		userRoute.passportCheck(
+			appConfig,
+			mockCheckAgainstHash,
+			sFDb,
+			'abc@abc.com',
+			'xyz',
+			function(err, user, messageObj) {
+				expect(err).to.equal(null);
+				expect(user).to.equal(false);
+				expect(messageObj).to.have.property('message');
+				expect(
+					messageObj.message
+				).to.equal(
+					appConfig.messages.wrong_username_password
+				);
+				done();
+			}
+		);
+		
+	});
+	
+	it('will work if username / password are correct',function(done) {
+		
+		var sFDb = {
+			ERROR_CODES: SFDb.ERROR,
+			findOne: function(collection, query, options, callback) {
+				if (collection == appConfig.user_email_collection) {
+					expect(query._id).to.equal('abc@abc.com');
+					return callback(
+						SFDb.ERROR.OK,
+						{ _id: 'abc@abc.com', userId: 'abc' }
+					);
+				}
+				expect(query._id).to.equal('abc');
+				return callback(
+					SFDb.ERROR.OK,
+					{ _id: 'abc@abc.com', password: 'zyx' }
+				);
+			}
+		};
+		
+		userRoute.passportCheck(
+			appConfig,
+			mockCheckAgainstHash,
+			sFDb,
+			'abc@abc.com',
+			'xyz',
+			function(err, user, messageObj) {
+				expect(err).to.equal(null);
+				expect(user).to.equal('abc');
+				expect(messageObj).to.eql(undefined);
+				done();
+			}
+		);
+		
+	});
+	
+	it('will will pass on errors when occuring during user lookup',function(done) {
+			
+		var sFDb = {
+			ERROR_CODES: SFDb.ERROR,
+			findOne: function(collection, query, options, callback) {
+				expect(query._id).to.equal('a');
+				callback(SFDb.ERROR.UNIDENTIFIED);
+			}
+		};
+		
+		userRoute.passportCheck(
+			appConfig,
+			mockCheckAgainstHash,
+			sFDb,
+			'a',
+			'b',
+			function(err, user, messageObj) {
+				expect(err).to.equal(SFDb.ERROR.UNIDENTIFIED);
+				done();
+			}
+		);
+		
+	});
+	
+	it('will will pass on errors when occuring during password lookup',function(done) {
+		var sFDb = {
+			ERROR_CODES: SFDb.ERROR,
+			findOne: function(collection, query, options, callback) {
+				if (collection == appConfig.user_email_collection) {
+					expect(query._id).to.equal('abc@abc.com');
+					return callback(
+						SFDb.ERROR.OK,
+						{ _id: 'abc@abc.com', userId: 'abc' }
+					);
+				}
+				expect(query._id).to.equal('abc');
+				callback(SFDb.ERROR.UNIDENTIFIED);
+			}
+		};
+		
+		userRoute.passportCheck(
+			appConfig,
+			mockCheckAgainstHash,
+			sFDb,
+			'abc@abc.com',
+			'b',
+			function(err, user, messageObj) {
+				expect(err).to.equal(SFDb.ERROR.UNIDENTIFIED);
+				done();
+			}
+		);
+	});
+});

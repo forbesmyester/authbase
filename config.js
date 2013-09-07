@@ -6,6 +6,7 @@ module.exports = {
 	"id_length": 8,
 	"auth_length": 64,
 	"activation_pad_length": 16,
+	"cookie_secret": "I actually do not think cookies are great, but they are more fun when eaten in secret!",
 	"email_test_collection": "emails",
 	"cookie": {
 		"domain": "cobol",
@@ -14,6 +15,9 @@ module.exports = {
 	"user_email_collection": "user_email",
 	"user_password_collection": "user_password",
 	"user_collection": "user",
+	"messages": {
+		"wrong_username_password": "Wrong email address or password"
+	},
 	"email": {
 		"register": {
 			"from": "mistersync@keyboardwritescode.com",

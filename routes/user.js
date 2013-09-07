@@ -22,7 +22,7 @@ var sendActivationEmail = function(config, emailSender, res, _id, email, name, c
 		data,
 		function() {
 			delete data.activationPad;
-			responder('accepted',data);
+			responder('accepted', data, {}, {});
 		}
 	);
 };
@@ -480,7 +480,8 @@ module.exports.activate.process = function(config, efvarl, generateRandomString,
 					return responder(
 						'not_found',
 						{},
-						{ 'email,activationPad': 'The email/activation pad combination supplied is invalid' }
+						{ 'email,activationPad': 'The email/activation pad combination supplied is invalid' },
+						{}
 					);
 				}
 				
@@ -499,4 +500,53 @@ module.exports.activate.process = function(config, efvarl, generateRandomString,
 	
 };
 
+/**
+ * NOT a route, used by Passport for username / password authentication within a route.
+ */
+module.exports.passportCheck = function(config, checkAgainstHash, sFDb, email, password, done) {
+	
+	var processError = function(err) {
+		if (err == sFDb.ERROR_CODES.NO_RESULTS) {
+			return done(
+				null,
+				false,
+				{ message: config.messages.wrong_username_password }
+			);
+		}
+		if (err) done(err);
+		return err;
+	};
+	
+	var userId = null;
+	
+	sFDb.findOne(
+		config.user_email_collection,
+		{ _id: email },
+		{},
+		function(err, result) {
+			if (err) { return processError(err); }
+			userId = result.userId;
+			sFDb.findOne(
+				config.user_password_collection,
+				{ _id: userId },
+				{},
+				function(err, result) {
+					if (err) { return processError(err); }
+					checkAgainstHash(
+						password,
+						result.password,
+						function(err, matches) {
+							if (err) return done(err);
+							if (!matches) {
+								return done(null, false, { message: config.messages.wrong_username_password } );
+							}
+							return done(null, userId );
+						}
+					);
+				}
+			);
+		}
+	);
+	
+};
 
