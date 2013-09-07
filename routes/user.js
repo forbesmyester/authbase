@@ -500,22 +500,95 @@ module.exports.activate.process = function(config, efvarl, generateRandomString,
 	
 };
 
+module.exports.passport = {};
+
+module.exports.passport.sFDbErrorTranslate = function(config, err, sFDb, next) {
+	if (err == sFDb.ERROR_CODES.NO_RESULTS) {
+		return next(
+			null,
+			false,
+			{ message: config.messages.wrong_username_password }
+		);
+	}
+	if (err) next(err);
+	return err;
+};
+
+/**
+ * NOT a route, used by Passport for mozilla persona
+ */
+module.exports.passport.findByEmail = function(config, generateRandomString, sFDb, email, done) {
+	
+	var userCreateAttemptsLeft = 10;
+	
+	function createUser(email, done) {
+		
+		if (--userCreateAttemptsLeft < 0) {
+			done('Too many id generation attempts', false);
+		}
+			
+		generateRandomString(config.id_length, function(err, generatedUserId) {
+			sFDb.insert(
+				config.user_collection,
+				{ _id : generatedUserId },
+				function(err, result) {
+					if (err == sFDb.ERROR_CODES.DUPLICATE_ID) {
+						return createUser(email, done);
+					}
+					sFDb.insert(
+						config.user_email_collection,
+						{ _id: email, userId: generatedUserId},
+						function(err, result) {
+							if (err) {
+								return module.exports.passport.sFDbErrorTranslate(
+									config,
+									err,
+									sFDb,
+									done
+								);
+							}
+							done(null, {
+								_id: generatedUserId,
+								email: email,
+								method: 'mozilla'
+							});
+						}
+					);
+				}
+			);
+		});
+
+	};
+	
+	sFDb.findOne(
+		config.user_email_collection,
+		{ _id: email },
+		{},
+		function(err, result) {
+			if (err == sFDb.ERROR_CODES.NO_RESULTS) {
+				return createUser(email, done);
+			}
+			if (err) {
+				return module.exports.passport.sFDbErrorTranslate(
+					config,
+					err,
+					sFDb,
+					done
+				);
+			}
+			done(null, {
+				_id: result.userId,
+				email: result._id,
+				method: 'mozilla'
+			});
+		}
+	);
+}
+
 /**
  * NOT a route, used by Passport for username / password authentication within a route.
  */
-module.exports.passportCheck = function(config, checkAgainstHash, sFDb, email, password, done) {
-	
-	var processError = function(err) {
-		if (err == sFDb.ERROR_CODES.NO_RESULTS) {
-			return done(
-				null,
-				false,
-				{ message: config.messages.wrong_username_password }
-			);
-		}
-		if (err) done(err);
-		return err;
-	};
+module.exports.passport.userPasswordCheck = function(config, checkAgainstHash, sFDb, email, password, done) {
 	
 	var userId = null;
 	
@@ -524,14 +597,28 @@ module.exports.passportCheck = function(config, checkAgainstHash, sFDb, email, p
 		{ _id: email },
 		{},
 		function(err, result) {
-			if (err) { return processError(err); }
+			if (err) {
+				return module.exports.passport.sFDbErrorTranslate(
+					config,
+					err,
+					sFDb,
+					done
+				);
+			}
 			userId = result.userId;
 			sFDb.findOne(
 				config.user_password_collection,
 				{ _id: userId },
 				{},
 				function(err, result) {
-					if (err) { return processError(err); }
+					if (err) { 
+						return module.exports.passport.sFDbErrorTranslate(
+							config,
+							err,
+							sFDb,
+							done
+						);
+					}
 					checkAgainstHash(
 						password,
 						result.password,
@@ -540,7 +627,14 @@ module.exports.passportCheck = function(config, checkAgainstHash, sFDb, email, p
 							if (!matches) {
 								return done(null, false, { message: config.messages.wrong_username_password } );
 							}
-							return done(null, userId );
+							return done(
+								null,
+								{
+									_id: userId,
+									email: email,
+									method: 'password'
+								}
+							);
 						}
 					);
 				}

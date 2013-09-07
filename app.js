@@ -11,7 +11,8 @@ var flash = require('connect-flash');
 var curryDi = require('curry-di');
 var renderRouter = require('./libs/renderRouter');
 var passport = require('passport'),
-	LocalStrategy = require('passport-local').Strategy;
+	LocalStrategy = require('passport-local').Strategy,
+	PersonaStrategy = require('passport-persona').Strategy;
 var appConfig = require('./config');
 
 var emailSender = function(config, from, to, subjectTemplate, textTemplate, data, next) {
@@ -44,7 +45,7 @@ app.use(express.favicon());
 app.use(express.logger('dev'));
 app.use(express.bodyParser());
 app.use(express.methodOverride());
-app.use(express.cookieParser(appConfig.cookie_secret));
+app.use(express.cookieParser(appConfig.cookie.secret));
 app.use(express.session());
 app.use(flash());
 app.use(passport.initialize());
@@ -81,29 +82,28 @@ var dependencies = {
 
 passport.use(new LocalStrategy(
 	{ usernameField: 'email' },
-	curryDi(dependencies, user.passportCheck)
+	curryDi(dependencies, user.passport.userPasswordCheck)
 ));
 
-passport.serializeUser(function(userId, done) {
+passport.use(new PersonaStrategy({
+		audience: 'http://' + appConfig.cookie.domain + ":3000"
+	},
+	curryDi(dependencies, user.passport.findByEmail)
+));
+
+passport.serializeUser(function(user, done) {
 	console.log("SER: ", user);
-	done(null, userId);
+	done(null, JSON.stringify(user));
 });
 
-passport.deserializeUser(function(userId, done) {
-	console.log("DESER: ", userId);
-	done( null, userId );
+passport.deserializeUser(function(user, done) {
+	console.log("DESER: ", user);
+	done( null, JSON.parse(user) );
 });
 
 var getResponder = function(pattern, req, res) {
 	
 	return function(statusStr, data, validationErr, businessErr, serverErr) {
-		
-		var toTemplate = {
-			data: data,
-			validationErr: validationErr,
-			businessErr: businessErr,
-			serverErr: serverErr
-		};
 		
 		function getInputForTemplate() {
 			var r = {},
@@ -123,6 +123,7 @@ var getResponder = function(pattern, req, res) {
 		function getDataAllDataForTemplate() {
 			return {
 				input: getInputForTemplate(),
+				user: req.user,
 				data: data,
 				validation: validationErr,
 				business: businessErr,
@@ -145,6 +146,7 @@ var getResponder = function(pattern, req, res) {
 			if (statusWord == 'ok') { return 200; }
 			if (statusWord == 'accepted') { return 202; }
 			if (statusWord == 'created') { return 201; }
+			if (statusWord == 'no_content') { return 204; }
 			return 500;
 		}
 		
@@ -189,7 +191,7 @@ var getResponder = function(pattern, req, res) {
 					function() {
 						res.redirect(
 							statusCodeFromStatusWord(statusStr),
-							'/user/activated'
+							appConfig.cookie.loginSuccessUrl
 						);
 					},
 				'html/user//validation_error':
@@ -204,6 +206,27 @@ var getResponder = function(pattern, req, res) {
 					changeRenderRouterPathToStatusAndTemplate(renderRouterPath),
 				'html/index/ok':
 					changeRenderRouterPathToStatusAndTemplate(renderRouterPath),
+				'json/user/browserid/created':
+					function() {
+						res.send(
+							statusCodeFromStatusWord(statusStr),
+							{}
+						);
+					},                 
+				'json/user/session/no_content':
+					function() {
+						res.send(
+							statusCodeFromStatusWord(statusStr),
+							{}
+						);
+					},
+				'html/user/session/no_content':
+					function() {
+						res.redirect(
+							statusCodeFromStatusWord(statusStr),
+							appConfig.cookie.logoutSuccessUrl
+						);
+					}
 				'///': function() {
 					res.status(404).end(renderRouterPath + ' NOT FOUND');
 				},
@@ -308,12 +331,30 @@ app.post('/user/session',
 	passport.authenticate(
 		'local',
 		{
-			successRedirect: '/',
-			failureRedirect: '/user/session',
+			successRedirect: appConfig.cookie.loginSuccessUrl,
+			failureRedirect: appConfig.cookie.loginFailUrl,
 			failureFlash: true
 		}
 	)
 );
+
+app.post('/user/browserid', 
+	passport.authenticate('persona', { failureRedirect: '/user/session' }),
+	wrapControllerFunctionForResponder(
+		':contentType/user/browserid/:status',
+		function(req, res, responder) {
+			responder('created', {}, {});
+		}
+	)
+);
+
+app.delete('/user/session',wrapControllerFunctionForResponder(
+	':contentType/user/session/:status',
+	function(req, res, responder) {
+		req.logout();
+		responder('no_content', {}, {});
+	}
+));
 
 http.createServer(app).listen(app.get('port'), function() {
   console.log('Express server listening on port ' + app.get('port'));

@@ -9,7 +9,20 @@ mixin print-errors
 doctype 5
 html
 	head
-		title= title
-		link(rel='stylesheet', href='/stylesheets/style.css')
+		meta(http-equiv="X-UA-Compatible", content="IE=Edge")
+		title SyncItServ
+		script(data-main="/js/main", src="/vendor-bower/requirejs/require.js")
 	body
+		div
+			- useremail = user ? user.method == 'mozilla' ? user.email : '' : ''
+			span#mozillaPersona
+				input#mozillaPersonaUser(value=useremail)
+			if (user)
+				if (user.method == 'mozilla')
+					a#mozillaPersonaLogout(href="#") Mozilla Logout
+				if (user.method == 'password')
+					a#passwordLogout(href="#") Logout
+			else
+				a(href="/user/session") login
+			
 		block content

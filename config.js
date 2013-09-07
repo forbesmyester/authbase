@@ -6,10 +6,13 @@ module.exports = {
 	"id_length": 8,
 	"auth_length": 64,
 	"activation_pad_length": 16,
-	"cookie_secret": "I actually do not think cookies are great, but they are more fun when eaten in secret!",
 	"email_test_collection": "emails",
 	"cookie": {
 		"domain": "cobol",
+		"secret": "I actually do not think cookies are great, but they are more fun when eaten in secret!",
+		"loginFailUrl": "/user/login",
+		"loginSuccessUrl": "/",
+		"logoutSuccessUrl": "/"
 	},
 	"auth_collection": "user_auth",
 	"user_email_collection": "user_email",

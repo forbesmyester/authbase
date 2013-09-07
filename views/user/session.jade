@@ -2,9 +2,8 @@ extends ../layout
 
 block content
 
-	div#mozillaPersona Use 
-		a#mozillaPersonaLogin(href="#") Mozilla Login
-
+	a#mozillaPersonaLogin(href="#") Login with Mozilla
+		
 	form(action="/user/session", method="post")
 		+print-errors()
 		ol

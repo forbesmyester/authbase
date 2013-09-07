@@ -432,7 +432,84 @@ describe('Processing the activation',function() {
 	});
 });
 
-describe('can authenticate using passport interface',function() {
+describe('can authenticate using mozilla persona', function() {
+	
+	it('will create when they don\'t exist, even if dup id generated (once)', function(done) {
+		
+		var duplicated = false;
+		
+		var sFDb = {
+			ERROR_CODES: SFDb.ERROR,
+			findOne: function(collection, query, options, callback) {
+				expect(query._id).to.equal('i.do.not@exist.com');
+				callback(SFDb.ERROR.NO_RESULTS);
+			},
+			insert: function(collection, document, callback) {
+				if (duplicated) { 
+					return callback(
+						SFDb.ERROR.OK, {
+							_id: 'i.do.not@exist.com',
+							userId: 'metoo'
+						}
+					);
+				}
+				duplicated = true;
+				callback(SFDb.ERROR.DUPLICATE_ID);
+			}
+		};
+		
+		userRoute.passport.findByEmail(
+			appConfig,
+			mockGenerateRandomString,
+			sFDb,
+			'i.do.not@exist.com',
+			function(err, user) {
+				expect(duplicated).to.equal(true);
+				expect(err).to.equal(null);
+				expect(user.email).to.equal('i.do.not@exist.com');
+				expect(user._id).to.equal('aaaaaaaa');
+				done();
+			}
+		);
+		
+	});
+	
+	it('will respond with users if found', function(done) {
+		
+		var sFDb = {
+			ERROR_CODES: SFDb.ERROR,
+			findOne: function(collection, query, options, callback) {
+				expect(query._id).to.equal('i.do@exist.com');
+				callback(
+					SFDb.ERROR.OK,
+					{
+						_id: 'i.do@exist.com',
+						userId: 'yesido'
+					}
+				);
+			}
+		};
+		
+		userRoute.passport.findByEmail(
+			appConfig,
+			mockGenerateRandomString,
+			sFDb,
+			'i.do@exist.com',
+			function(err, user) {
+				expect(err).to.equal(null);
+				expect(user).to.eql({
+					email: 'i.do@exist.com',
+					_id: 'yesido',
+					method: 'mozilla'
+				});
+				done();
+			}
+		);
+	});
+	
+});
+
+describe('can authenticate using passport interface', function() {
 		
 	it('will return a proper error message when email is wrong',function(done) {
 		
@@ -444,7 +521,7 @@ describe('can authenticate using passport interface',function() {
 			}
 		};
 		
-		userRoute.passportCheck(
+		userRoute.passport.userPasswordCheck(
 			appConfig,
 			mockCheckAgainstHash,
 			sFDb,
@@ -482,7 +559,7 @@ describe('can authenticate using passport interface',function() {
 			}
 		};
 		
-		userRoute.passportCheck(
+		userRoute.passport.userPasswordCheck(
 			appConfig,
 			mockCheckAgainstHash,
 			sFDb,
@@ -523,7 +600,7 @@ describe('can authenticate using passport interface',function() {
 			}
 		};
 		
-		userRoute.passportCheck(
+		userRoute.passport.userPasswordCheck(
 			appConfig,
 			mockCheckAgainstHash,
 			sFDb,
@@ -564,7 +641,7 @@ describe('can authenticate using passport interface',function() {
 			}
 		};
 		
-		userRoute.passportCheck(
+		userRoute.passport.userPasswordCheck(
 			appConfig,
 			mockCheckAgainstHash,
 			sFDb,
@@ -572,7 +649,11 @@ describe('can authenticate using passport interface',function() {
 			'xyz',
 			function(err, user, messageObj) {
 				expect(err).to.equal(null);
-				expect(user).to.equal('abc');
+				expect(user).to.eql({
+					_id: 'abc',
+					email: 'abc@abc.com',
+					method: 'password'
+				});
 				expect(messageObj).to.eql(undefined);
 				done();
 			}
@@ -590,7 +671,7 @@ describe('can authenticate using passport interface',function() {
 			}
 		};
 		
-		userRoute.passportCheck(
+		userRoute.passport.userPasswordCheck(
 			appConfig,
 			mockCheckAgainstHash,
 			sFDb,
@@ -620,7 +701,7 @@ describe('can authenticate using passport interface',function() {
 			}
 		};
 		
-		userRoute.passportCheck(
+		userRoute.passport.userPasswordCheck(
 			appConfig,
 			mockCheckAgainstHash,
 			sFDb,
