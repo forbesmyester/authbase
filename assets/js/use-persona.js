@@ -5,12 +5,6 @@ define(
 	// Code is derived from https://developer.mozilla.org/en-US/docs/Mozilla/Persona/Quick_Setup?redirectlocale=en-US&redirectslug=Persona%2FQuick_Setup which is licensed under public domain.
 	// My changes are licensed under MIT
 	
-	if (!$('#mozillaPersona').length) { return; }
-	
-	$('#mozillaPersonaLogin').bind('click',function() {
-		navigatorId.request();
-	});
-	
 	var sessionClose = function() {
 		$.ajax({
 			type: 'DELETE',
@@ -26,6 +20,12 @@ define(
 	};
 	
 	$('#passwordLogout').bind('click',sessionClose);
+	
+	if (!$('#mozillaPersona').length) { return; }
+	
+	$('#mozillaPersonaLogin').bind('click',function() {
+		navigatorId.request();
+	});
 	
 	$('#mozillaPersonaLogout').bind('click',function() {
 		navigatorId.logout(); 

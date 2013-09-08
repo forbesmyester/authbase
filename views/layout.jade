@@ -14,15 +14,16 @@ html
 		script(data-main="/js/main", src="/vendor-bower/requirejs/require.js")
 	body
 		div
-			- useremail = user ? user.method == 'mozilla' ? user.email : '' : ''
-			span#mozillaPersona
-				input#mozillaPersonaUser(value=useremail)
 			if (user)
 				if (user.method == 'mozilla')
-					a#mozillaPersonaLogout(href="#") Mozilla Logout
+					span#mozillaPersona
+						input#mozillaPersonaUser(value=user.email)
+						a#mozillaPersonaLogout(href="#") Mozilla Logout
 				if (user.method == 'password')
 					a#passwordLogout(href="#") Logout
 			else
-				a(href="/user/session") login
+				span#mozillaPersona
+					input#mozillaPersonaUser(value=useremail)
+					a(href="/user/session") login
 			
 		block content

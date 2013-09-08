@@ -226,7 +226,7 @@ var getResponder = function(pattern, req, res) {
 							statusCodeFromStatusWord(statusStr),
 							appConfig.cookie.logoutSuccessUrl
 						);
-					}
+					},
 				'///': function() {
 					res.status(404).end(renderRouterPath + ' NOT FOUND');
 				},
