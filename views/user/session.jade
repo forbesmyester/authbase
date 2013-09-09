@@ -3,6 +3,8 @@ extends ../layout
 block content
 
 	a#mozillaPersonaLogin(href="#") Login with Mozilla
+	span &nbsp;|&nbsp;
+	a(href="/user/facebook/request") Login with Facebook
 		
 	form(action="/user/session", method="post")
 		+print-errors()

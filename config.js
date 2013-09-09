@@ -8,7 +8,7 @@ module.exports = {
 	"activation_pad_length": 16,
 	"email_test_collection": "emails",
 	"cookie": {
-		"domain": "cobol",
+		"domain": "cobol.speechmarks.com",
 		"secret": "I actually do not think cookies are great, but they are more fun when eaten in secret!",
 		"loginFailUrl": "/user/login",
 		"loginSuccessUrl": "/",
@@ -17,7 +17,17 @@ module.exports = {
 	"auth_collection": "user_auth",
 	"user_email_collection": "user_email",
 	"user_password_collection": "user_password",
+	"user_facebook_collection": "user_facebook", 
 	"user_collection": "user",
+	"integration": {
+		"auth": {
+			"facebook": {
+				"appId": "639779216045742",
+				"appSecret": "50d8adea4470d6a7489226923841fdc9",
+				"callback": "/user/facebook"
+			}
+		}
+	},
 	"messages": {
 		"wrong_username_password": "Wrong email address or password"
 	},

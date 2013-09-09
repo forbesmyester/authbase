@@ -12,7 +12,8 @@ var curryDi = require('curry-di');
 var renderRouter = require('./libs/renderRouter');
 var passport = require('passport'),
 	LocalStrategy = require('passport-local').Strategy,
-	PersonaStrategy = require('passport-persona').Strategy;
+	PersonaStrategy = require('passport-persona').Strategy,
+	FacebookStrategy = require('passport-facebook').Strategy;
 var appConfig = require('./config');
 
 var emailSender = function(config, from, to, subjectTemplate, textTemplate, data, next) {
@@ -88,7 +89,19 @@ passport.use(new LocalStrategy(
 passport.use(new PersonaStrategy({
 		audience: 'http://' + appConfig.cookie.domain + ":3000"
 	},
-	curryDi(dependencies, user.passport.findByEmail)
+	curryDi(dependencies, user.passport.findByMozillaEmail)
+));
+
+passport.use(new FacebookStrategy(
+	{
+		clientID: appConfig.integration.auth.facebook.appId,
+		clientSecret: appConfig.integration.auth.facebook.appSecret,
+		callbackURL: "http://" +
+			appConfig.cookie.domain + ':3000' +
+			appConfig.integration.auth.facebook.callback +
+			'/auth'
+	},
+	curryDi(dependencies, user.passport.findByFacebook)
 ));
 
 passport.serializeUser(function(user, done) {
@@ -344,6 +357,23 @@ app.post('/user/browserid',
 		':contentType/user/browserid/:status',
 		function(req, res, responder) {
 			responder('created', {}, {});
+		}
+	)
+);
+
+app.get(
+	appConfig.integration.auth.facebook.callback + '/request',
+	passport.authenticate('facebook')
+);
+
+app.get(
+	appConfig.integration.auth.facebook.callback + '/auth',
+	passport.authenticate(
+		'facebook',
+		{
+			successRedirect: appConfig.cookie.loginSuccessUrl,
+			failureRedirect: appConfig.cookie.loginFailUrl,
+			failureFlash: true
 		}
 	)
 );

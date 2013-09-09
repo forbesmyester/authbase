@@ -517,27 +517,28 @@ module.exports.passport.sFDbErrorTranslate = function(config, err, sFDb, next) {
 /**
  * NOT a route, used by Passport for mozilla persona
  */
-module.exports.passport.findByEmail = function(config, generateRandomString, sFDb, email, done) {
+module.exports.passport._findBySecondary = function(config, generateRandomString, sFDb, authMethod, secondaryCollection, secondaryKey, secondaryValue, userData, done) {
 	
 	var userCreateAttemptsLeft = 10;
 	
-	function createUser(email, done) {
+	function createUser() {
 		
 		if (--userCreateAttemptsLeft < 0) {
 			done('Too many id generation attempts', false);
 		}
-			
+		
 		generateRandomString(config.id_length, function(err, generatedUserId) {
+			userData._id = generatedUserId;
 			sFDb.insert(
 				config.user_collection,
-				{ _id : generatedUserId },
+				userData,
 				function(err, result) {
 					if (err == sFDb.ERROR_CODES.DUPLICATE_ID) {
-						return createUser(email, done);
+						return createUser();
 					}
 					sFDb.insert(
-						config.user_email_collection,
-						{ _id: email, userId: generatedUserId},
+						secondaryCollection,
+						{ _id: secondaryValue, userId: generatedUserId},
 						function(err, result) {
 							if (err) {
 								return module.exports.passport.sFDbErrorTranslate(
@@ -547,11 +548,12 @@ module.exports.passport.findByEmail = function(config, generateRandomString, sFD
 									done
 								);
 							}
-							done(null, {
+							var r = {
 								_id: generatedUserId,
-								email: email,
-								method: 'mozilla'
-							});
+								method: authMethod
+							};
+							r[secondaryKey] = secondaryValue;
+							done(null, r);
 						}
 					);
 				}
@@ -561,12 +563,12 @@ module.exports.passport.findByEmail = function(config, generateRandomString, sFD
 	};
 	
 	sFDb.findOne(
-		config.user_email_collection,
-		{ _id: email },
+		secondaryCollection,
+		{ _id: secondaryValue },
 		{},
 		function(err, result) {
 			if (err == sFDb.ERROR_CODES.NO_RESULTS) {
-				return createUser(email, done);
+				return createUser();
 			}
 			if (err) {
 				return module.exports.passport.sFDbErrorTranslate(
@@ -576,12 +578,47 @@ module.exports.passport.findByEmail = function(config, generateRandomString, sFD
 					done
 				);
 			}
-			done(null, {
+			var r = {
 				_id: result.userId,
-				email: result._id,
-				method: 'mozilla'
-			});
+				method: authMethod
+			};
+			r[secondaryKey] = secondaryValue;
+			done(null, r);
 		}
+	);
+};
+
+module.exports.passport.findByMozillaEmail = function(config, generateRandomString, sFDb, email, done) {
+	return module.exports.passport._findBySecondary(
+		config,
+		generateRandomString,
+		sFDb,
+		'mozilla',
+		config.user_email_collection,
+		'email',
+		email,
+		{},
+		done
+	);
+};
+
+module.exports.passport.findByFacebook = function(config, generateRandomString, sFDb, accessToken, refreshToken, profile, done) {
+	var mergeData = {
+		_profile: profile
+	};
+	if (profile.hasOwnProperty('displayName')) {
+		mergeData.name = profile.displayName;
+	}
+	return module.exports.passport._findBySecondary(
+		config,
+		generateRandomString,
+		sFDb,
+		'facebook',
+		config.user_facebook_collection,
+		'facebookId',
+		profile.id,
+		mergeData,
+		done
 	);
 }
 
