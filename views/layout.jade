@@ -19,7 +19,7 @@ html
 					span#mozillaPersona
 						input#mozillaPersonaUser(value=user.email)
 						a#mozillaPersonaLogout(href="#") Mozilla Logout
-				if (user.method == 'password')
+				else
 					a#passwordLogout(href="#") Logout
 			else
 				span#mozillaPersona
