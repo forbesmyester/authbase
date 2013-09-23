@@ -1,4 +1,4 @@
-var bcrypt = require('bcrypt'),
+var bcrypt = require('bcrypt-nodejs'),
 	crypto = require('crypto');
 
 module.exports.generateRandomString = function(length,next) {
