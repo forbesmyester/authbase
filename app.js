@@ -204,7 +204,7 @@ var getResponder = function(pattern, req, res) {
 					function() {
 						res.redirect(
 							statusCodeFromStatusWord(statusStr),
-							appConfig.cookie.loginSuccessUrl
+							'html/user/activated'
 						);
 					},
 				'html/user//validation_error':
@@ -323,6 +323,13 @@ app.patch('/user/:_id/activate/:activationPad', wrapControllerFunctionForRespond
 
 app.get('/user/pending-activation', wrapControllerFunctionForResponder(
 	':contentType/user/pending-activation/:status',
+	function(req, res, responder) {
+		responder('ok');
+	}
+));
+
+app.get('/user/activated', wrapControllerFunctionForResponder(
+	':contentType/user/activated/:status',
 	function(req, res, responder) {
 		responder('ok');
 	}
