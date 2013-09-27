@@ -1,6 +1,7 @@
 module.exports = {
 
-	"database_host": '192.168.122.28',
+	"database_host": '127.0.0.1',
+	//"database_host": '192.168.122.28',
 	"database_port": '27017',
 	"database_name": 'authbase',
 	"id_length": 8,
@@ -10,7 +11,7 @@ module.exports = {
 	"cookie": {
 		"domain": "cobol.speechmarks.com",
 		"secret": "I actually do not think cookies are great, but they are more fun when eaten in secret!",
-		"loginFailUrl": "/user/login",
+		"loginFailUrl": "/user/session",
 		"loginSuccessUrl": "/",
 		"logoutSuccessUrl": "/"
 	},
