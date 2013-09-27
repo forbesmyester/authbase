@@ -490,7 +490,7 @@ module.exports.passport._mergeWithDbUserRecord = function(config, sFDb, userId, 
 			var r = {};
 			next(
 				null,
-				require('node.extend').call({}, mergeWith, result)
+				require('node.extend').call({}, result, mergeWith)
 			);
 		}
 	);
@@ -536,7 +536,13 @@ module.exports.passport._findBySecondary = function(config, generateRandomString
 								method: authMethod
 							};
 							r[secondaryKey] = secondaryValue;
-							done(null, r);
+							return module.exports.passport._mergeWithDbUserRecord(
+								config,
+								sFDb,
+								generatedUserId,
+								r,
+								done
+							);
 						}
 					);
 				}
@@ -566,7 +572,13 @@ module.exports.passport._findBySecondary = function(config, generateRandomString
 				method: authMethod
 			};
 			r[secondaryKey] = secondaryValue;
-			done(null, r);
+			return module.exports.passport._mergeWithDbUserRecord(
+				config,
+				sFDb,
+				secondaryValue,
+				r,
+				done
+			);
 		}
 	);
 };
@@ -647,14 +659,18 @@ module.exports.passport.userPasswordCheck = function(config, checkAgainstHash, s
 							if (!matches) {
 								return done(null, false, { message: config.messages.wrong_username_password } );
 							}
-							return done(
-								null,
+							return module.exports.passport._mergeWithDbUserRecord(
+								config,
+								sFDb,
+								userId,
 								{
 									_id: userId,
 									email: email,
 									method: 'password'
-								}
-							);
+								},
+								done
+							)
+							
 						}
 					);
 				}

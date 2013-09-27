@@ -437,6 +437,13 @@ describe('can authenticate using mozilla persona', function() {
 		var sFDb = {
 			ERROR_CODES: SFDb.ERROR,
 			findOne: function(collection, query, options, callback) {
+				if (collection == appConfig.user_collection) {
+					expect(collection).to.eql(appConfig.user_collection);
+					return callback(
+						SFDb.ERROR.OK,
+						{ _id: query._id, name: "Jack Bob Smith", color: "Purple" }
+					);
+				}
 				expect(query._id).to.equal('i.do.not@exist.com');
 				callback(SFDb.ERROR.NO_RESULTS);
 			},
@@ -464,6 +471,8 @@ describe('can authenticate using mozilla persona', function() {
 				expect(err).to.equal(null);
 				expect(user.email).to.equal('i.do.not@exist.com');
 				expect(user._id).to.equal('aaaaaaaa');
+				expect(user.name).to.equal('Jack Bob Smith');
+				expect(user.color).to.equal('Purple');
 				done();
 			}
 		);
@@ -475,6 +484,13 @@ describe('can authenticate using mozilla persona', function() {
 		var sFDb = {
 			ERROR_CODES: SFDb.ERROR,
 			findOne: function(collection, query, options, callback) {
+				if (collection == appConfig.user_collection) {
+					expect(collection).to.eql(appConfig.user_collection);
+					return callback(
+						SFDb.ERROR.OK,
+						{ _id: query._id, name: "Jack Bob Smith", color: "Purple" }
+					);
+				}
 				expect(query._id).to.equal('i.do@exist.com');
 				callback(
 					SFDb.ERROR.OK,
@@ -496,7 +512,9 @@ describe('can authenticate using mozilla persona', function() {
 				expect(user).to.eql({
 					email: 'i.do@exist.com',
 					_id: 'yesido',
-					method: 'mozilla'
+					method: 'mozilla',
+					name: 'Jack Bob Smith',
+					color: 'Purple',
 				});
 				done();
 			}
@@ -629,6 +647,14 @@ describe('can authenticate using passport interface', function() {
 						{ _id: 'abc@abc.com', userId: 'abc' }
 					);
 				}
+				if (collection == appConfig.user_collection) {
+					expect(query._id).to.equal('abc');
+					expect(collection).to.eql(appConfig.user_collection);
+					return callback(
+						SFDb.ERROR.OK,
+						{ _id: query._id, name: "Jack Bob Smith", color: "Purple" }
+					);
+				}
 				expect(query._id).to.equal('abc');
 				return callback(
 					SFDb.ERROR.OK,
@@ -648,7 +674,8 @@ describe('can authenticate using passport interface', function() {
 				expect(user).to.eql({
 					_id: 'abc',
 					email: 'abc@abc.com',
-					method: 'password'
+					method: 'password',
+					name: "Jack Bob Smith", color: "Purple"
 				});
 				expect(messageObj).to.eql(undefined);
 				done();
@@ -722,7 +749,7 @@ describe('_mergeWithDbUserRecord will merge supplied data with ', function() {
 				expect(collection).to.eql(appConfig.user_collection);
 				return callback(
 					SFDb.ERROR.OK,
-					{ name: "Jack Bob Smith", color: "Purple" }
+					{ _id: 'discarded', name: "Jack Bob Smith", color: "Purple" }
 				);
 			}
 		};
