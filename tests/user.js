@@ -87,18 +87,14 @@ describe('Registration says',function() {
 		var reqs = {
 			email_a: { // Invalid Email
 				accepts: function() {return 'text/html'; },
-				body: {name: 'Jack Jenkins', email: 'jack.jenkins.hisdomain.com', color: 'red'}
+				body: {name: 'Jack Jenkins', email: 'jack.jenkins.hisdomain.com'}
 			},
 			email_b: { //No Email
 				accepts: function() {return 'text/html'; },
-				body: {name: 'Jack Jenkins', email: '', color: 'red'} },
-			color_a: { // No Color
-				accepts: function() {return 'text/html'; },
-				body: {name: 'Jack Jenkins', email: 'jack.jenkins@hisdomain.com', color: ''}
-			},
+				body: {name: 'Jack Jenkins', email: ''} },
 			name_a:{ // No Name
 				accepts: function() {return 'text/html'; },
-				body: {name: '', email: 'jack.jenkins@hisdomain.com', color: 'red'}
+				body: {name: '', email: 'jack.jenkins@hisdomain.com'}
 			}
 		};
 		
@@ -137,13 +133,13 @@ describe('Registration says',function() {
 		
 		var req = {
 			accepts: function() {return 'text/html'; },
-			body: {name: 'Jack Jenkins', email: 'jackjenkineszzz@abc.com'}
+			body: {email: 'jackjenkineszzz@abc.com'}
 		};
 	
 		it('will feed back error information and your own data', function(done) {
 			var responseFunc = function(status,data,vErrors,bErrors) {
 				expect(bErrors).to.eql({});
-				expect(vErrors.hasOwnProperty('color')).to.equal(true);
+				expect(vErrors.hasOwnProperty('name')).to.equal(true);
 				done();
 			};
 			userRoute.register.process(

@@ -1,14 +1,13 @@
 /*
 Sends an activation email then responds to the User.
 */
-var sendActivationEmail = function(config, emailSender, res, _id, email, name, color, activationPad, registrationEmail, responder) {
+var sendActivationEmail = function(config, emailSender, res, _id, email, name, activationPad, registrationEmail, responder) {
 	
 	var emailTemplate = registrationEmail ? 'register' : 'reactivation';
 
 	var data = {
 		_id: _id,
 		name: name,
-		color: color,
 		email: email,
 		activationPad: activationPad
 	};
@@ -74,38 +73,6 @@ var checkingStructures = {
 		],
 		checks: []
 	},
-	life: {
-		required: true,
-		missingMessage: 'You must specify the amount of time to stay logged in',
-		filters: [
-			function(l) {
-				return validator.sanitize(l).trim();
-			}
-		],
-		checks: [
-			function(l) {
-				validator.check(l,'Not a valid value')
-					.isIn(["0C", "1D", "1W", "2W", "1M" ]);
-			}
-		]
-	},
-	color: {
-		required: true,
-		missingMessage: 'You must pick a color',
-		filters: [
-			function(name) {
-				return validator.sanitize(name).trim();
-			}
-		],
-		checks: [
-			function(color) {
-				validator.check(
-					color,
-					'No color selected'
-				).isIn(['red','green','blue']);
-			}
-		]
-	},
 	password: {
 		required: true,
 		missingMessage: 'You must specify a password',
@@ -157,11 +124,10 @@ module.exports.register.get = function(config, getResponseFormat, req, res, resp
  * 
  * * name: The desired Name of the User.
  * * email: The desired email of the User.
- * * color: The color which will represent the User.
  * 
  * #### Processing
  * 
- * Registration occurs with a Name, Email and Color and if any of these fail validation it will return with a `user/register/html/post/validation_error`
+ * Registration occurs with a Name and Email and if any of these fail validation it will return with a `user/register/html/post/validation_error`
  * 
  * If the no User with the Email exists and on the system, it will be created and the server will respond with `user/register/html/post/accepted`. That email will include the URL /session/[User.id]/[User.activationPad] allowing the User to Activate the account.
  * 
@@ -175,8 +141,7 @@ module.exports.register.process = function(config, efvarl, emailSender, generate
 	validated = efvarl(
 		{
 			name: checkingStructures.name,
-			email: checkingStructures.email,
-			color: checkingStructures.color
+			email: checkingStructures.email
 		},
 		req.body
 	);
@@ -215,7 +180,6 @@ module.exports.register.process = function(config, efvarl, emailSender, generate
 					userId,
 					validated.data.email,
 					validated.data.name,
-					validated.data.color,
 					activationPad,
 					newEmail,
 					responder
@@ -306,8 +270,7 @@ module.exports.register.process = function(config, efvarl, emailSender, generate
 			{ 
 				_id: _id,
 				createdAt: new Date(),
-				name: validated.data.name,
-				color: validated.data.color
+				name: validated.data.name
 			},
 			function(err) {
 				if (err == sFDb.ERROR_CODES.DUPLICATE_ID) {
