@@ -454,7 +454,7 @@ describe('can authenticate using mozilla persona', function() {
 			}
 		};
 		
-		userRoute.passport.findByEmail(
+		userRoute.passport.findByMozillaEmail(
 			appConfig,
 			mockGenerateRandomString,
 			sFDb,
@@ -486,7 +486,7 @@ describe('can authenticate using mozilla persona', function() {
 			}
 		};
 		
-		userRoute.passport.findByEmail(
+		userRoute.passport.findByMozillaEmail(
 			appConfig,
 			mockGenerateRandomString,
 			sFDb,
