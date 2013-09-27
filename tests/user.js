@@ -439,6 +439,7 @@ describe('can authenticate using mozilla persona', function() {
 			findOne: function(collection, query, options, callback) {
 				if (collection == appConfig.user_collection) {
 					expect(collection).to.eql(appConfig.user_collection);
+					expect(query._id).to.equal('aaaaaaaa');
 					return callback(
 						SFDb.ERROR.OK,
 						{ _id: query._id, name: "Jack Bob Smith", color: "Purple" }

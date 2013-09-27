@@ -575,7 +575,7 @@ module.exports.passport._findBySecondary = function(config, generateRandomString
 			return module.exports.passport._mergeWithDbUserRecord(
 				config,
 				sFDb,
-				secondaryValue,
+				result.userId,
 				r,
 				done
 			);
