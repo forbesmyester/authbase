@@ -204,7 +204,7 @@ var getResponder = function(pattern, req, res) {
 					function() {
 						res.redirect(
 							statusCodeFromStatusWord(statusStr),
-							'html/user/activated'
+							'/user/activated'
 						);
 					},
 				'html/user//validation_error':
