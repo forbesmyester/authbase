@@ -1,4 +1,4 @@
-var bcrypt = require('bcrypt-nodejs'),
+var bcrypt = require('bcrypt'),
 	crypto = require('crypto');
 
 module.exports.generateRandomString = function(length,next) {
@@ -23,7 +23,7 @@ module.exports.hasher = function(password,next) {
 		if (err) {
 			return next(err);
 		}
-		bcrypt.hash(password, salt, null, function(er, hash) {
+		bcrypt.hash(password, salt, function(er, hash) {
 			return next(er,hash);
 		});
 	});
