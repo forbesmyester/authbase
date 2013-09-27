@@ -710,3 +710,62 @@ describe('can authenticate using passport interface', function() {
 		);
 	});
 });
+
+describe('_mergeWithDbUserRecord will merge supplied data with ', function() {
+	
+	it('what is in the user collection if it finds the userId', function(done) {
+		
+		var sFDb = {
+			ERROR_CODES: SFDb.ERROR,
+			findOne: function(collection, query, options, callback) {
+				expect(query._id).to.equal('abc123');
+				expect(collection).to.eql(appConfig.user_collection);
+				return callback(
+					SFDb.ERROR.OK,
+					{ name: "Jack Bob Smith", color: "Purple" }
+				);
+			}
+		};
+		
+		userRoute.passport._mergeWithDbUserRecord(
+			appConfig,
+			sFDb,
+			'abc123',
+			{ email: 'jackbob@smith.com', _id: 'zyxz987' },
+			function(err, result) {
+				expect(err).to.equal(null);
+				expect(result).to.eql({
+					name: "Jack Bob Smith", color: "Purple", email: 'jackbob@smith.com', _id: 'zyxz987'
+				});
+				done();
+			}
+		);
+		
+	});
+	
+	it('nothing and return error code when it cannot find the userId', function(done) {
+		
+		var sFDb = {
+			ERROR_CODES: SFDb.ERROR,
+			findOne: function(collection, query, options, callback) {
+				expect(query._id).to.equal('abc123');
+				expect(collection).to.eql(appConfig.user_collection);
+				callback(SFDb.ERROR.NO_RESULTS);
+			}
+		};
+		
+		userRoute.passport._mergeWithDbUserRecord(
+			appConfig,
+			sFDb,
+			'abc123',
+			{ email: 'jackbob@smith.com', _id: 'zyxz987' },
+			function(err, result) {
+				expect(err).to.equal(SFDb.ERROR.NO_RESULTS);
+				expect(result).to.equal(undefined);
+				done();
+			}
+		);
+		
+	});
+	
+});

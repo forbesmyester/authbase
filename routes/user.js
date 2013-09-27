@@ -477,6 +477,26 @@ module.exports.passport.sFDbErrorTranslate = function(config, err, sFDb, next) {
 	return err;
 };
 
+module.exports.passport._mergeWithDbUserRecord = function(config, sFDb, userId, mergeWith, next) {
+	
+	sFDb.findOne(
+		config.user_collection,
+		{ _id: userId },
+		{},
+		function(err, result) {
+			if (err !== sFDb.ERROR_CODES.OK) {
+				return next(err);
+			}
+			var r = {};
+			next(
+				null,
+				require('node.extend').call({}, mergeWith, result)
+			);
+		}
+	);
+	
+};
+
 /**
  * NOT a route, used by Passport for mozilla persona
  */
