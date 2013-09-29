@@ -30,7 +30,6 @@ var validator = require('validator');
 
 var checkingStructures = {
 	name: {
-		required: true,
 		missingMessage: 'You must have a name',
 		filters: [
 			function(name) {
@@ -47,7 +46,6 @@ var checkingStructures = {
 		]
 	},
 	email: {
-		required: true,
 		missingMessage: 'You must specify an email',
 		filters: [
 			function(name) {
@@ -64,7 +62,6 @@ var checkingStructures = {
 		]
 	},
 	user_id: {
-		required: true,
 		missingMessage: 'You must specify a User Id',
 		filters: [
 			function(name) {
@@ -74,7 +71,6 @@ var checkingStructures = {
 		checks: []
 	},
 	password: {
-		required: true,
 		missingMessage: 'You must specify a password',
 		filters: [
 			function(name) {
@@ -91,7 +87,6 @@ var checkingStructures = {
 		]
 	},
 	activationPad: {
-		required: true,
 		missingMessage: 'You must specify an activation pad',
 		filters: [
 			function(name) {
@@ -101,6 +96,57 @@ var checkingStructures = {
 		checks: []
 	}
 };
+
+/**
+ * ## buildCheckingStructure
+ *
+ * Convenience function for preparing data for efvarl.
+ *
+ * Takes `rulesAndWhetherRequired` which should be an array and pulls out structures and whether they should be required or not.
+ *
+ * * **@param {Array} `rulesAndWhetherRequired`** An Array of Object which should
+ *		contain keys rule and required.
+ *
+ * ### Example
+ * 
+ * ```
+ * var checkingStructure = buildCheckingStructure([
+ *   { rule: user_id, required: true },
+ *   { rule: activationPad, required: true }
+ * ]);
+ * ```
+ */
+var buildCheckingStructure = function(rulesAndWhetherRequired) {
+	
+	var i, l,
+		r = {},
+		key;
+	
+	for (i=0, l=rulesAndWhetherRequired.length; i<l; i++) {
+		
+		if (
+			!rulesAndWhetherRequired[i].hasOwnProperty('rule') ||
+			!rulesAndWhetherRequired[i].hasOwnProperty('required')
+		) {
+			throw "buildCheckingStructure requires every object to have a rule and required...";
+		}
+		
+		if (!checkingStructures.hasOwnProperty(rulesAndWhetherRequired[i].rule)) {
+			throw "buildCheckingStructure was asked for rule " + rulesAndWhetherRequired[i].rule + " but that could not be found in checkingStructures";
+		}
+		key = rulesAndWhetherRequired[i].hasOwnProperty('mapped') ?
+			rulesAndWhetherRequired[i].mapped :
+			rulesAndWhetherRequired[i].rule;
+		r[key] = require('node.extend').call(
+			{},
+			checkingStructures[rulesAndWhetherRequired[i].rule],
+			{ required: rulesAndWhetherRequired[i].required }
+		);
+	}
+	
+	return r;
+	
+}
 
 /**
  * ## Registration
@@ -139,10 +185,12 @@ module.exports.register.process = function(config, efvarl, emailSender, generate
 		mergeData = {};
 	
 	validated = efvarl(
-		{
-			name: checkingStructures.name,
-			email: checkingStructures.email
-		},
+		buildCheckingStructure(
+			[
+				{ rule: 'name', required: 'true' },
+				{ rule: 'email', required: 'true' }
+			]
+		),
 		req.body
 	);
 	
@@ -336,10 +384,12 @@ module.exports.activate = {};
 module.exports.activate.get = function(config, efvarl, sFDb, req, res, responder) {
 	
 	var validated = efvarl(
-		{
-			_id: checkingStructures.user_id,
-			activationPad: checkingStructures.activationPad
-		},
+		buildCheckingStructure(
+			[
+				{ rule: 'user_id', mapped: '_id', required: 'true' },
+				{ rule: 'activationPad', required: 'true' }
+			]
+		),
 		req.params
 	);
 	
@@ -397,12 +447,14 @@ module.exports.activate.get = function(config, efvarl, sFDb, req, res, responder
 module.exports.activate.process = function(config, efvarl, generateRandomString, hasher, sFDb, req, res, responder) {
 	
 	var validated = efvarl(
-		{
-			_id: checkingStructures.user_id,
-			activationPad: checkingStructures.activationPad,
-			email: checkingStructures.email,
-			password: checkingStructures.password
-		},
+		buildCheckingStructure(
+			[
+				{ rule: 'user_id', mapped: '_id', required: 'true' },
+				{ rule: 'activationPad', required: 'true' },
+				{ rule: 'email', required: 'true' },
+				{ rule: 'password', required: 'true' }
+			]
+		),
 		require('node.extend').call(
 			this,
 			true,
@@ -478,7 +530,6 @@ module.exports.passport.sFDbErrorTranslate = function(config, err, sFDb, next) {
 };
 
 module.exports.passport._mergeWithDbUserRecord = function(config, sFDb, userId, mergeWith, next) {
-	
 	sFDb.findOne(
 		config.user_collection,
 		{ _id: userId },
@@ -486,6 +537,7 @@ module.exports.passport._mergeWithDbUserRecord = function(config, sFDb, userId, 
 		function(err, result) {
 			if (err !== sFDb.ERROR_CODES.OK) {
 				return next(err);
+				//"routes/user:passport._mergeWithDbUserRecord - Error " + err + " looking up User record");
 			}
 			var r = {};
 			next(
@@ -512,6 +564,7 @@ module.exports.passport._findBySecondary = function(config, generateRandomString
 		
 		generateRandomString(config.id_length, function(err, generatedUserId) {
 			userData._id = generatedUserId;
+			userData.createdAt = new Date();
 			sFDb.insert(
 				config.user_collection,
 				userData,
